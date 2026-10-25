@@ -1,0 +1,74 @@
+name: Verify SaaS foundation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sentinelle_owner
+          POSTGRES_PASSWORD: ci-owner-only
+          POSTGRES_DB: sentinelle
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sentinelle_owner -d sentinelle"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      DATABASE_ADMIN_URL: postgresql://sentinelle_owner:ci-owner-only@127.0.0.1:5432/sentinelle
+      DATABASE_URL: postgresql://sentinelle_app:sentinelle-local-only@127.0.0.1:5432/sentinelle
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Preserve resolved dependency versions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lock
+          path: package-lock.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Unit tests
+        run: npm test
+      - name: Type check
+        run: npm run typecheck
+      - name: Build API and web application
+        run: npm run build
+      - name: Provision isolated test database role
+        run: |
+          node --input-type=module <<'JS'
+          import pg from 'pg';
+          import { readFile } from 'node:fs/promises';
+          const db = new pg.Client({ connectionString: process.env.DATABASE_ADMIN_URL });
+          await db.connect();
+          try { await db.query(await readFile('database/local-init.sql','utf8')); }
+          finally { await db.end(); }
+          JS
+      - name: Apply migrations
+        run: npm run db:migrate
+      - name: Seed test fixtures
+        env:
+          NODE_ENV: development
+          DEV_AUTH_ENABLED: 'true'
+        run: npm run db:seed
+      - name: PostgreSQL isolation and authenticated HTTP tests
+        run: npm run test:integration
