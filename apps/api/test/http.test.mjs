@@ -1,0 +1,90 @@
+import test, { before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { access } from 'node:fs/promises';
+import { generateKeyPair, exportJWK, SignJWT } from 'jose';
+
+const issuer = 'urn:sentinelle:development';
+const tenant = '10000000-0000-4000-8000-000000000001';
+const otherTenant = '10000000-0000-4000-8000-000000000002';
+const firstAction = '40000000-0000-4000-8000-000000000001';
+const outsideSiteAction = '40000000-0000-4000-8000-000000000002';
+let child, jwksServer, baseUrl, privateKey, publicKey;
+before(async () => {
+  if (!process.env.DATABASE_URL) throw new Error('Set DATABASE_URL and migrate/seed the local database first.');
+  const entrypoint = new URL('../dist/main.js',import.meta.url);
+  await access(entrypoint);
+  ({ privateKey, publicKey } = await generateKeyPair('RS256',{ extractable: true }));
+  const jwk = { ...await exportJWK(publicKey),kid: 'test-key',use: 'sig',alg: 'RS256' };
+  jwksServer = createServer((request,response)=> { response.writeHead(200,{ 'Content-Type': 'application/json' }); response.end(JSON.stringify({ keys: [jwk] })); });
+  jwksServer.listen(0,'127.0.0.1'); await once(jwksServer,'listening');
+  const probe = createServer(); probe.listen(0,'127.0.0.1'); await once(probe,'listening');
+  const port = probe.address().port; await new Promise(resolve=>probe.close(resolve));
+  baseUrl = `http://127.0.0.1:${port}/api/v1`;
+  const env = { ...process.env,NODE_ENV: 'development',DEV_AUTH_ENABLED: 'false',API_HOST: '127.0.0.1',API_PORT: String(port),OIDC_ISSUER: issuer,OIDC_AUDIENCE: 'sentinelle-test',OIDC_JWKS_URI: `http://127.0.0.1:${jwksServer.address().port}/jwks` };
+  delete env.DATABASE_ADMIN_URL;
+  child = spawn(process.execPath,[entrypoint.pathname],{ env,stdio: 'ignore' });
+  const deadline = Date.now()+15000;
+  while (Date.now()<deadline) {
+    if (child.exitCode !== null) throw new Error('Test API failed to start. Check the build and database role.');
+    try { if ((await fetch(`${baseUrl}/health`)).ok) return; } catch {}
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  throw new Error('Test API startup timed out.');
+});
+after(async () => {
+  if (child && child.exitCode===null) { child.kill('SIGTERM'); await once(child,'exit'); }
+  if (jwksServer) await new Promise(resolve=>jwksServer.close(resolve));
+});
+async function token(subject='jean-dupont',overrides={}) {
+  return new SignJWT({}).setProtectedHeader({ alg: 'RS256',kid: 'test-key' }).setIssuedAt()
+    .setIssuer(issuer).setAudience(overrides.audience || 'sentinelle-test').setSubject(subject)
+    .setExpirationTime(overrides.expiration || '5m').sign(privateKey);
+}
+async function request(path,auth,options={}) {
+  return fetch(`${baseUrl}/${path}`,{ ...options, headers: { ...(auth ? { Authorization: `Bearer ${auth}` } : {}),'X-Tenant-Id': tenant, ...(options.body ? { 'Content-Type': 'application/json' } : {}),...options.headers } });
+}
+test('missing, expired and wrong-audience tokens cannot authenticate',async () => {
+  assert.equal((await request('me')).status,401);
+  assert.equal((await request('me',await token('jean-dupont',{ expiration: Math.floor(Date.now()/1000)-60 }))).status,401);
+  assert.equal((await request('me',await token('jean-dupont',{ audience: 'other-api' }))).status,401);
+  assert.equal((await request('me','invalid-token')).status,401);
+});
+test('verified identity sees only its memberships, regardless of caller headers',async () => {
+  const auth = await token();
+  const response = await request('me',auth,{ headers: { 'X-User-Id': 'other-user','X-Role': 'admin' } });
+  assert.equal(response.status,200);
+  const me = await response.json(); assert.deepEqual(me.tenants.map(t=>t.id),[tenant]);
+  assert.equal((await request('actions',auth,{ headers: { 'X-Tenant-Id': otherTenant } })).status,403);
+});
+test('site-limited readers cannot see other site history or create actions',async () => {
+  const auth = await token('aicha-meite');
+  const response = await request('actions',auth); assert.equal(response.status,200);
+  const body = await response.json(); assert.ok(body.items.length>0);
+  assert.ok(body.items.every(a=>a.siteId==='30000000-0000-4000-8000-000000000001'));
+  assert.equal((await request(`actions/${outsideSiteAction}/history`,auth)).status,404);
+  assert.equal((await request('actions',auth,{ method: 'POST',body: JSON.stringify({ title: 'Unauthorized',siteId: '30000000-0000-4000-8000-000000000001',ownerId: '20000000-0000-4000-8000-000000000002',priority: 'normal' }) })).status,403);
+});
+test('validation rejects unknown body fields and optimistic concurrency rejects stale versions',async () => {
+  const auth = await token();
+  assert.equal((await request(`actions/${firstAction}`,auth,{ method: 'PATCH',body: JSON.stringify({ version: 1,status: 'closed',tenantId: otherTenant }) })).status,400);
+  const list = await (await request('actions',auth)).json();
+  const action = list.items.find(a=>a.id===firstAction); assert.ok(action);
+  assert.equal((await request(`actions/${firstAction}`,auth,{ method: 'PATCH',body: JSON.stringify({ version: action.version+10000,status: 'closed' }) })).status,409);
+});
+test('documents endpoints enforce participants and expose only authorized reviewers',async () => {
+  const auth=await token();
+  const documents=await request('documents',auth);
+  assert.equal(documents.status,200); assert.ok(Array.isArray((await documents.json()).items));
+  const context=await (await request('context',auth)).json();
+  const reviewers=context.documentReviewers['30000000-0000-4000-8000-000000000001'];
+  assert.ok(reviewers.some(user=>user.id==='20000000-0000-4000-8000-000000000005'));
+  assert.ok(!reviewers.some(user=>user.id==='20000000-0000-4000-8000-000000000002'));
+  const response=await request('documents',auth,{ method:'POST',body:JSON.stringify({
+    code:'TEST-INVALID-REVIEW',title:'Invalid self-review',siteId:'30000000-0000-4000-8000-000000000001',
+    content:'Not inserted',reviewerId:'20000000-0000-4000-8000-000000000001',approverId:'20000000-0000-4000-8000-000000000005',
+  }) });
+  assert.equal(response.status,400);
+});

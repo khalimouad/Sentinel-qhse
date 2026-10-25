@@ -1,0 +1,73 @@
+'use client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Action, ActionList, AuditEvent, CreateAction, MeResponse, TenantSummary, WorkspaceContext } from '@sentinelle/contracts';
+
+class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
+export async function api<T>(path: string,tenant?: string,options?: RequestInit): Promise<T> {
+  const response = await fetch(`/api/v1/${path}`,{
+    ...options, cache: 'no-store',
+    headers: { ...(options?.body ? { 'Content-Type': 'application/json' } : {}), ...(tenant ? { 'X-Tenant-Id': tenant } : {}) },
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const messages: Record<number,string> = { 401: 'Connectez-vous pour accéder à votre espace.', 403: 'Vous n’avez pas accès à cet espace ou à cette opération.', 409: 'Cette action a été modifiée. Les données ont été actualisées ; recommencez votre opération.' };
+    throw new ApiError(response.status,messages[response.status] || (typeof body.message === 'string' ? body.message : 'L’opération a échoué.'));
+  }
+  return response.json();
+}
+export function useWorkspace() {
+  const [context,setContext] = useState<WorkspaceContext | null>(null);
+  const [actions,setActions] = useState<Action[]>([]);
+  const [error,setError] = useState('');
+  const [needsLogin,setNeedsLogin] = useState(false);
+  const [loading,setLoading] = useState(true);
+  const [pending,setPending] = useState(false);
+  const [authentication,setAuthentication] = useState('');
+  const [tenants,setTenants] = useState<TenantSummary[]>([]);
+  const [selectedTenant,setSelectedTenant] = useState('');
+  const loadGeneration = useRef(0);
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const generation = ++loadGeneration.current;
+    setLoading(true); setError(''); setContext(null); setActions([]);
+    try {
+      const me = await api<MeResponse>('me',undefined,{ signal });
+      if (generation !== loadGeneration.current || signal?.aborted) return;
+      setAuthentication(me.authentication); setNeedsLogin(false);
+      setTenants(me.tenants);
+      const tenant = me.tenants.find(item => item.id === selectedTenant) || me.tenants[0];
+      if (!tenant) throw new Error('Aucune organisation n’est associée à votre compte.');
+      const workspace = await api<WorkspaceContext>('context',tenant.id,{ signal });
+      // Load up to 100 records in this first foundation increment.
+      const result = await api<ActionList>('actions?limit=100',tenant.id,{ signal });
+      if (!signal?.aborted && generation === loadGeneration.current) { setContext(workspace); setActions(result.items); }
+    } catch (e) {
+      if (signal?.aborted || generation !== loadGeneration.current) return;
+      setContext(null); setActions([]);
+      setNeedsLogin(e instanceof ApiError && e.status === 401);
+      setError(e instanceof Error ? e.message : 'Impossible de charger votre espace.');
+    } finally { if (!signal?.aborted && generation === loadGeneration.current) setLoading(false); }
+  },[selectedTenant]);
+  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); },[load]);
+  async function createAction(input: CreateAction) {
+    if (!context) throw new Error('Votre espace n’est pas chargé.');
+    setPending(true);
+    try { const saved = await api<Action>('actions',context.tenant.id,{ method: 'POST',body: JSON.stringify(input) }); setActions(current => [saved,...current].slice(0,100)); return saved; }
+    finally { setPending(false); }
+  }
+  async function updateAction(id: string) {
+    if (!context) throw new Error('Votre espace n’est pas chargé.');
+    const action = actions.find(a => a.id === id);
+    if (!action) throw new Error('Action introuvable.');
+    setPending(true);
+    try {
+      const saved = await api<Action>(`actions/${id}`,context.tenant.id,{ method: 'PATCH',body: JSON.stringify({ version: action.version,status: action.status === 'open' ? 'closed' : 'open' }) });
+      setActions(current => current.map(a => a.id === id ? saved : a));
+    } catch (e) { if (e instanceof ApiError && e.status === 409) await load(); throw e; }
+    finally { setPending(false); }
+  }
+  async function history(id: string) {
+    if (!context) throw new Error('Votre espace n’est pas chargé.');
+    return api<AuditEvent[]>(`actions/${id}/history`,context.tenant.id);
+  }
+  return { context,actions,tenants,error,needsLogin,loading,pending,authentication,refresh: () => load(),switchTenant: setSelectedTenant,createAction,updateAction,history };
+}
