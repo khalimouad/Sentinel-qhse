@@ -13,6 +13,7 @@ export interface Action {
   id: string; title: string; origin: string; siteId: string; siteName: string;
   ownerId: string; ownerName: string; priority: Priority; status: ActionStatus;
   dueDate: string | null; version: number; createdAt: string; updatedAt: string;
+  reportId: string | null;
 }
 export interface ActionList { items: Action[]; total: number }
 export interface CreateAction {
@@ -40,4 +41,24 @@ export interface DocumentList { items: DocumentSummary[]; total: number }
 export interface DocumentEvent {
   id: string; versionId: string; actorId: string; occurredAt: string; operation: string;
   before: Record<string, unknown> | null; after: Record<string, unknown>;
+}
+export type ReportKind = 'incident' | 'near_miss' | 'nonconformity' | 'complaint';
+export type ReportSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type ReportStatus = 'reported' | 'in_analysis' | 'action_plan' | 'effectiveness_review' | 'closed';
+export type ReportCommand = 'start_analysis' | 'plan_actions' | 'request_review' | 'close' | 'return_for_action' | 'reopen';
+export type ReportCurrency = 'XOF' | 'XAF' | 'MAD' | 'EUR' | 'USD' | 'GBP';
+export interface Report {
+  id: string; title: string; description: string; kind: ReportKind; severity: ReportSeverity;
+  siteId: string; siteName: string; occurredAt: string; reportedBy: string; status: ReportStatus;
+  ownerId: string | null; verifierId: string | null; correction: string; rootCause: string; fiveWhys: string[];
+  costAmount: string; currency: ReportCurrency; revision: number;
+  effectiveness: 'not_evaluated' | 'effective' | 'ineffective'; effectivenessNote: string | null;
+  reviewedBy: string | null; reviewedAt: string | null; closedAt: string | null;
+  createdAt: string; updatedAt: string;
+}
+export interface ReportDetail { report: Report; actions: Action[] }
+export interface ReportList { items: Report[]; total: number }
+export interface ReportEvent {
+  id: string; actorId: string; occurredAt: string; operation: string;
+  before: Record<string,unknown> | null; after: Record<string,unknown>;
 }

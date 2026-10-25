@@ -88,3 +88,24 @@ test('documents endpoints enforce participants and expose only authorized review
   }) });
   assert.equal(response.status,400);
 });
+test('staff declaration reaches independently verified closure through the shared action plan',async()=>{
+  const managerAuth=await token(),readerAuth=await token('aicha-meite'),verifierAuth=await token('fatima-k');
+  const declared=await request('reports',readerAuth,{method:'POST',body:JSON.stringify({title:'HTTP lifecycle test',description:'Écart de test contrôlé',kind:'nonconformity',severity:'high',siteId:'30000000-0000-4000-8000-000000000001',occurredAt:new Date(Date.now()-60000).toISOString(),currency:'EUR'})});
+  assert.equal(declared.status,201);let current=await declared.json();const id=current.report.id;assert.equal(current.report.reportedBy,'20000000-0000-4000-8000-000000000002');
+  const analysis={revision:current.report.revision,ownerId:'20000000-0000-4000-8000-000000000001',verifierId:'20000000-0000-4000-8000-000000000003',correction:'Produit isolé',rootCause:'Procédure incomplète',fiveWhys:['Contrôle absent','Instruction manquante'],costAmount:'12.50',currency:'EUR'};
+  assert.equal((await request(`reports/${id}/analysis`,readerAuth,{method:'PATCH',body:JSON.stringify(analysis)})).status,403);
+  const analyzed=await request(`reports/${id}/analysis`,managerAuth,{method:'PATCH',body:JSON.stringify(analysis)});assert.equal(analyzed.status,200);current=await analyzed.json();
+  async function advance(command,auth=managerAuth,note){const response=await request(`reports/${id}/decisions`,auth,{method:'POST',body:JSON.stringify({revision:current.report.revision,command,...(note?{note}:{})})});assert.equal(response.status,201);current=await response.json();}
+  await advance('start_analysis');await advance('plan_actions');
+  const added=await request(`reports/${id}/actions`,managerAuth,{method:'POST',body:JSON.stringify({revision:current.report.revision,title:'Compléter la procédure de contrôle',ownerId:analysis.ownerId,priority:'high'})});assert.equal(added.status,201);current=await added.json();
+  const linked=current.actions[0];assert.equal(linked.reportId,id);
+  assert.equal((await request(`reports/${id}/decisions`,managerAuth,{method:'POST',body:JSON.stringify({revision:current.report.revision,command:'request_review'})})).status,409);
+  const closedAction=await request(`actions/${linked.id}`,managerAuth,{method:'PATCH',body:JSON.stringify({version:linked.version,status:'closed'})});assert.equal(closedAction.status,200);const completed=await closedAction.json();
+  current=await (await request(`reports/${id}`,managerAuth)).json();await advance('request_review');
+  assert.equal((await request(`reports/${id}/decisions`,managerAuth,{method:'POST',body:JSON.stringify({revision:current.report.revision,command:'close',note:'Auto-approbation interdite'})})).status,403);
+  await advance('close',verifierAuth,'Vérification indépendante du contrôle concluante.');assert.equal(current.report.status,'closed');assert.equal(current.report.reviewedBy,'20000000-0000-4000-8000-000000000003');assert.ok(current.report.closedAt);
+  assert.equal((await request(`actions/${linked.id}`,managerAuth,{method:'PATCH',body:JSON.stringify({version:completed.version,status:'open'})})).status,200);
+  current=await (await request(`reports/${id}`,readerAuth)).json();assert.equal(current.report.status,'action_plan');assert.equal(current.report.effectiveness,'not_evaluated');assert.equal(current.report.closedAt,null);
+  const privateReport=await request('reports',managerAuth,{method:'POST',body:JSON.stringify({title:'Management-only HTTP fixture',description:'Not reported by reader',kind:'incident',severity:'low',siteId:'30000000-0000-4000-8000-000000000001',occurredAt:new Date(Date.now()-60000).toISOString(),currency:'EUR'})});assert.equal(privateReport.status,201);
+  const privateId=(await privateReport.json()).report.id;assert.equal((await request(`reports/${privateId}`,readerAuth)).status,404);
+});

@@ -36,12 +36,20 @@ Le parcours Documents est relié à l’API. Les brouillons sont réservés aux 
 
 Six tests métier documentaires passent, en plus des trois tests de configuration. Les tests PostgreSQL ajoutés pour confidentialité des brouillons, immutabilité, accusés de lecture et remplacement d’une publication restent à exécuter. Les fichiers binaires, diffusion nominative avec relances, signatures via prestataire et retrait/archivage sans remplacement restent à compléter. L’approbation nominative actuelle n’est pas une intégration de signature électronique qualifiée.
 
-### Prochaines étapes
+### Incrément incidents et non-conformités
+
+Le code ajoute les déclarations d’incident, presque-accident, non-conformité et réclamation; l’analyse des causes avec jusqu’à cinq pourquoi; la correction immédiate; le coût de non-qualité en devise; l’attribution d’un responsable et d’un vérificateur distincts; les actions correctives du plan unique et la décision motivée d’efficacité. La clôture exige des actions terminées et une validation du vérificateur désigné. Une action rouverte fait revenir automatiquement le signalement au plan d’actions et invalide son résultat d’efficacité, dans la même transaction.
+
+La migration `003_reports.sql` ajoute tables, contraintes, politiques, historique et synchronisation des actions. Les membres « reader » peuvent déclarer sur leurs sites et consulter leurs propres signalements. Les managers/admins traitent ceux de leurs sites. Les actions et journaux liés suivent aussi la visibilité du signalement afin de ne pas révéler les déclarations d’autres personnes par le plan commun.
+
+Six nouveaux tests locaux passent (15 au total). Les tests PostgreSQL couvrent usurpation de déclarant, sites, confidentialité, indépendance de la vérification et réouverture automatique; un test HTTP déroule le cycle complet. Ces tests d’intégration et le build restent à exécuter. Les photos/fichiers, notifications, diagramme Ishikawa, indicateurs SST et signalements anonymes/confidentiels ne sont pas ajoutés par cet incrément.
+
+### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
 
 1. Terminer la recette de cette fondation : exécuter le build, les tests d’isolation et le parcours navigateur; connecter un fournisseur OIDC de test et produire le lockfile.
-2. Compléter le socle partagé : terminer la recette documentaire et les fichiers/pièces jointes privés, puis incidents/non-conformités, audits, risques, commentaires, workflows et file de notifications.
+2. Compléter le socle partagé : terminer la recette documentaire et des signalements, les fichiers/pièces jointes privés, puis audits, risques, commentaires et file de notifications.
 3. Registre des obligations : textes et versions, articles, preuves, responsables, évaluations et décisions humaines; commencer avec des sources vérifiées pour les pays choisis.
 4. Anticorruption : tiers, cadeaux/conflits, alertes anonymes et enquêtes avec une politique d’accès distincte. Les droits du socle ne doivent pas donner accès aux enquêtes.
 5. Agent de veille : ingestion par source/pays, extraction et recherche sourcée, suivi des versions, validation humaine, évaluations sur corpus contrôlé avant mise en service.

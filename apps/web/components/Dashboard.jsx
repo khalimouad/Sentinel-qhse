@@ -5,6 +5,7 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpenCheck
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useWorkspace } from '../lib/use-workspace';
 import DocumentsPage from './DocumentsPage';
+import ReportsPage from './ReportsPage';
 
 const chartData = [
   { month: 'Avr.', conformity: 65, actions: 46 }, { month: 'Mai', conformity: 68, actions: 49 },
@@ -22,7 +23,7 @@ const regulations = [
 const nav = [
   { label: 'Vue d’ensemble', icon: LayoutDashboard }, { label: 'Mes actions', icon: ListChecks, count: '8' },
   { label: 'Conformité', icon: BookOpenCheck, count: '3' }, { label: 'Risques', icon: Activity },
-  { label: 'Audits', icon: ClipboardCheck }, { label: 'Documents', icon: FileText },
+  { label: 'Audits', icon: ClipboardCheck }, { label: 'Documents', icon: FileText }, { label: 'Incidents & NC', icon: CircleAlert },
 ];
 
 function Brand() { return <div className="brand"><div className="brand-mark"><ShieldCheck size={18} strokeWidth={1.9} /></div><span>sentinelle<span className="brand-dot">.</span></span></div>; }
@@ -94,8 +95,8 @@ export default function App() {
     <main className="main-area">
       {workspace.loading && <div className="workspace-banner" role="status">Chargement de votre espace…</div>}
       {workspace.error && <div className="workspace-banner workspace-error" role="alert"><span>{workspace.error}</span>{workspace.needsLogin ? <a href="/auth/login">Se connecter</a> : <button onClick={workspace.refresh}>Réessayer</button>}</div>}
-      {context && <div className="workspace-banner">Aperçu du tableau de bord : les actions et les documents reflètent les données de votre organisation.</div>}
-      {workspace.authentication === 'development' && <div className="workspace-banner">Espace local de démonstration · les plans d’actions et les documents sont enregistrés sur le serveur.</div>}
+      {context && <div className="workspace-banner">Aperçu du tableau de bord : les actions, documents et signalements reflètent les données de votre organisation.</div>}
+      {workspace.authentication === 'development' && <div className="workspace-banner">Espace local de démonstration · les actions, documents et signalements sont enregistrés sur le serveur.</div>}
 
       <header className="topbar">
         <button className="icon-button mobile-menu" onClick={() => setMobileNav(true)} aria-label="Ouvrir le menu"><Menu size={19} /></button>
@@ -132,7 +133,7 @@ export default function App() {
         </section>
 
         <footer className="page-footer"><span>Données du plan d’actions chargées depuis votre espace</span><span className="footer-secure"><LockKeyhole size={12}/> Session protégée · accès limité à votre organisation</span><button onClick={()=>handleNav('Mes actions')}>Journal d’activité <ArrowRight size={12}/></button></footer>
-      </div> : page==='Documents' ? context ? <DocumentsPage key={context.tenant.id} context={context} siteName={activeSite} /> : <div className="module-page"><p>Chargement de votre espace documentaire…</p></div> : ['Mes actions','Conformité'].includes(page) ? <ModulePage page={page} actions={actions} activeSite={activeSite} tenantName={context?.tenant.name} readOnly={!context?.canWrite || workspace.pending} onComplete={completeAction} onHistory={openHistory} onExport={exportActions} onBack={()=>setPage('Vue d’ensemble')} onAdd={()=>setShowAction(true)} onNotify={notify} /> : <div className="module-page"><div className="panel planned-module"><h1>{page}</h1><p>Ce module fait partie de la prochaine étape du déploiement.</p><button className="button" onClick={()=>setPage('Vue d’ensemble')}>Retour à la vue d’ensemble</button></div></div>}
+      </div> : page==='Incidents & NC' ? context ? <ReportsPage key={context.tenant.id} context={context} siteName={activeSite} onActionsChanged={workspace.refreshActions} /> : <div className="module-page"><p>Chargement de vos signalements…</p></div> : page==='Documents' ? context ? <DocumentsPage key={context.tenant.id} context={context} siteName={activeSite} /> : <div className="module-page"><p>Chargement de votre espace documentaire…</p></div> : ['Mes actions','Conformité'].includes(page) ? <ModulePage page={page} actions={actions} activeSite={activeSite} tenantName={context?.tenant.name} readOnly={!context?.canWrite || workspace.pending} onComplete={completeAction} onHistory={openHistory} onExport={exportActions} onBack={()=>setPage('Vue d’ensemble')} onAdd={()=>setShowAction(true)} onNotify={notify} /> : <div className="module-page"><div className="panel planned-module"><h1>{page}</h1><p>Ce module fait partie de la prochaine étape du déploiement.</p><button className="button" onClick={()=>setPage('Vue d’ensemble')}>Retour à la vue d’ensemble</button></div></div>}
     </main>
 
     {showAlert && <div className="modal-backdrop" onClick={()=>setShowAlert(false)}><div className="modal alert-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowAlert(false)} aria-label="Fermer"><X size={18}/></button><div className="modal-symbol amber-bg"><FileCheck2 size={20}/></div><div className="section-kicker">APERÇU · SOURCE NON CONNECTÉE</div><h2>{showAlert.title}</h2><p className="modal-reference">Exemple de présentation, sans source vérifiée</p><div className="source-card"><div className="source-icon"><FileText size={16}/></div><div><b>Exigence détectée par l’assistant</b><p>Le contenu réglementaire sera disponible après connexion et validation des sources officielles pour vos pays et activités.</p><span><ShieldCheck size={12}/> Aucune analyse vérifiée disponible</span></div></div><div className="review-callout"><CircleAlert size={15}/><span>Cette proposition doit être validée par votre responsable conformité avant d’être ajoutée au registre.</span></div><div className="modal-actions"><button className="button button-quiet" onClick={()=>{setShowAlert(false);notify('Proposition ignorée');}}>Ignorer</button><button className="button button-primary" onClick={()=>{setShowAlert(false);notify('Le registre réglementaire sera disponible à la prochaine étape.');}}><Check size={15}/> Fermer l’aperçu</button></div></div></div>}

@@ -8,8 +8,8 @@
     "dev": "npm run build -w @sentinelle/contracts && npm run build -w @sentinelle/api && concurrently -k 'npm run dev -w @sentinelle/api' 'npm run dev -w @sentinelle/web'",
     "build": "npm run build -w @sentinelle/contracts && npm run build -w @sentinelle/api && npm run build -w @sentinelle/web",
     "typecheck": "npm run build -w @sentinelle/contracts && npm run typecheck --workspaces --if-present",
-    "test": "node --test apps/api/test/config.test.mjs apps/api/test/documents.test.mjs",
-    "test:integration": "node --env-file-if-exists=.env --test apps/api/test/isolation.test.mjs apps/api/test/documents-isolation.test.mjs apps/api/test/http.test.mjs",
+    "test": "node --test apps/api/test/config.test.mjs apps/api/test/documents.test.mjs apps/api/test/reports.test.mjs",
+    "test:integration": "node --env-file-if-exists=.env --test apps/api/test/isolation.test.mjs apps/api/test/documents-isolation.test.mjs apps/api/test/reports-isolation.test.mjs apps/api/test/http.test.mjs",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
     "db:seed": "node --env-file-if-exists=.env scripts/seed.mjs"
   },

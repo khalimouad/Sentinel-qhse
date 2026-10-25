@@ -20,7 +20,7 @@ L’API ouvre une transaction, résout l’identité, puis utilise `set_config(.
 
 Les tables `identity.*` ne sont pas lisibles directement par le rôle de l’API. Des fonctions `SECURITY DEFINER` étroites, avec `search_path` vide et droits d’exécution explicitement attribués, consultent les adhésions et résolvent l’identité. Ces fonctions sont réservées au serveur de confiance; les identifiants PostgreSQL ne doivent jamais être distribués aux clients.
 
-L’API vérifie au démarrage qu’elle utilise `sentinelle_app` sans SUPERUSER/BYPASSRLS. Ce rôle ne peut ni provisionner les droits, ni supprimer des actions, ni écrire directement l’historique. Les contraintes composites empêchent d’assigner une action à un site ou un membre d’une autre organisation. Le lecteur ne peut pas écrire; les rôles admin et manager peuvent modifier les actions des sites autorisés.
+L’API vérifie au démarrage qu’elle utilise `sentinelle_app` sans SUPERUSER/BYPASSRLS. Ce rôle ne peut ni provisionner les droits, ni supprimer des actions, ni écrire directement l’historique. Les contraintes composites empêchent d’assigner une action à un site ou un membre d’une autre organisation. Le rôle lecteur ne peut pas modifier les plans d’actions; il peut toutefois déclarer un événement à son nom et confirmer la lecture d’une publication. Les rôles admin et manager traitent les actions et signalements de leurs sites autorisés.
 
 Un déclencheur insère un événement de création/mise à jour avec l’acteur, le tenant, le site, la date et les valeurs avant/après. La transaction métier et l’historique réussissent ou échouent ensemble. Le rôle applicatif ne peut pas modifier/supprimer ces événements; cela ne protège pas contre un administrateur de base capable de modifier le schéma. Une conservation probante ou WORM nécessitera un stockage et un contrôle d’exploitation dédiés.
 
@@ -49,6 +49,16 @@ Un nouveau document reçoit un code tenant unique et une version 1 en brouillon.
 La publication archive la publication précédente dans la même transaction. Une version soumise ne peut plus changer de contenu; une reprise crée une nouvelle version. Des déclencheurs empêchent aussi les sauts d’étapes et modifications de contenu hors de ce parcours en SQL. Un verrou transactionnel par document sérialise versions, décisions et accusés de lecture; un lecteur peut confirmer la version encore publiée sans acquérir de droit d’écriture documentaire.
 
 Les politiques RLS cachent les brouillons/non-publications aux non-participants, y compris dans les listes et historiques. Les versions publiées et archivées sont visibles aux personnes autorisées du site. Chaque version comporte une empreinte SHA-256 calculée en base. Les événements excluent le texte intégral, conservé dans la version figée. Les accusés de lecture nominatifs sont datés en base et ne peuvent être modifiés/supprimés par l’application. L’approbation horodatée via identité OIDC ne constitue pas une intégration de signature qualifiée; les fichiers binaires, la diffusion nominative et les relances seront ajoutés séparément.
+
+## Incidents, non-conformités et efficacité
+
+L’API `/reports` fournit liste/déclaration et détail. Les sous-routes `/:id/analysis`, `/:id/decisions`, `/:id/actions` et `/:id/history` traitent l’analyse, le cycle métier, les actions du plan commun et l’historique. Les données sont cloisonnées par tenant et site; un lecteur ne voit que ses propres déclarations, tandis qu’un manager voit les déclarations de ses sites.
+
+Le déclarant est dérivé de l’identité vérifiée. Les faits initiaux ne peuvent pas être modifiés par le rôle SQL applicatif. L’analyse comporte correction immédiate, cause racine, jusqu’à cinq pourquoi, responsable, vérificateur distinct et coût stocké en `numeric(14,2)` : les montants sont échangés en chaînes décimales, sans conversion en flottant. Les devises initiales sont XOF, XAF, MAD, EUR, USD et GBP; les francs CFA n’acceptent pas de fraction non nulle.
+
+Le cycle est `reported → in_analysis → action_plan → effectiveness_review → closed`. La vérification requiert au moins une action liée et toutes les actions clôturées; le vérificateur nommé, distinct du responsable, peut conclure avec preuve narrative ou retourner au plan d’actions avec motif. Les mutations attendent une révision et prennent un verrou sur le signalement. Les actions référencent un signalement par une clé étrangère composite tenant/site. Leur création et leurs changements de statut mettent aussi à jour la révision et l’historique du signalement; une action rouverte fait revenir une vérification/clôture au plan d’actions et efface son résultat courant d’efficacité. Les décisions antérieures restent dans le journal immuable.
+
+Les politiques de lecture des actions et de leur audit prennent en compte le signalement parent afin d’éviter les fuites par les vues transversales. Les photos/pièces jointes et la collecte hors connexion dépendent du module de stockage à venir. Les données médicales, alertes anonymes et enquêtes d’anticorruption doivent suivre leurs propres politiques et parcours dédiés.
 
 ## Déploiement à préciser
 

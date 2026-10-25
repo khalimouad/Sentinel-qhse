@@ -4,11 +4,7 @@ import type { Action, ActionList, AuditEvent } from '@sentinelle/contracts';
 import { Database, type TenantSession } from '../database.js';
 import type { Principal } from '../auth.js';
 import { ActionQuery, CreateActionDto, UpdateActionDto } from './dto.js';
-
-const columns = `a.id,a.title,a.origin,a.site_id AS "siteId",s.name AS "siteName",a.owner_id AS "ownerId",
-  u.name AS "ownerName",a.priority,a.status,to_char(a.due_date,'YYYY-MM-DD') AS "dueDate",a.version,
-  a.created_at AS "createdAt",a.updated_at AS "updatedAt"`;
-const joins = 'FROM app.actions a JOIN app.sites s ON s.id=a.site_id JOIN identity.list_members($1) u ON u.id=a.owner_id';
+import { actionColumns as columns, actionJoins as joins } from './action-query.js';
 
 @Injectable()
 export class ActionsService {

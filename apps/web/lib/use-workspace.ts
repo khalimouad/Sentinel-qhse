@@ -10,7 +10,7 @@ export async function api<T>(path: string,tenant?: string,options?: RequestInit)
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    const messages: Record<number,string> = { 401: 'Connectez-vous pour accéder à votre espace.', 403: 'Vous n’avez pas accès à cet espace ou à cette opération.', 409: 'Cette action a été modifiée. Les données ont été actualisées ; recommencez votre opération.' };
+    const messages: Record<number,string> = { 401: 'Connectez-vous pour accéder à votre espace.', 403: 'Vous n’avez pas accès à cet espace ou à cette opération.', 409: 'Les données ou le statut ont changé. Actualisez avant de recommencer.' };
     throw new ApiError(response.status,messages[response.status] || (typeof body.message === 'string' ? body.message : 'L’opération a échoué.'));
   }
   return response.json();
@@ -26,8 +26,10 @@ export function useWorkspace() {
   const [tenants,setTenants] = useState<TenantSummary[]>([]);
   const [selectedTenant,setSelectedTenant] = useState('');
   const loadGeneration = useRef(0);
+  const activeTenant = useRef<string | null>(null);
   const load = useCallback(async (signal?: AbortSignal) => {
     const generation = ++loadGeneration.current;
+    activeTenant.current=null;
     setLoading(true); setError(''); setContext(null); setActions([]);
     try {
       const me = await api<MeResponse>('me',undefined,{ signal });
@@ -39,7 +41,7 @@ export function useWorkspace() {
       const workspace = await api<WorkspaceContext>('context',tenant.id,{ signal });
       // Load up to 100 records in this first foundation increment.
       const result = await api<ActionList>('actions?limit=100',tenant.id,{ signal });
-      if (!signal?.aborted && generation === loadGeneration.current) { setContext(workspace); setActions(result.items); }
+      if (!signal?.aborted && generation === loadGeneration.current) { activeTenant.current=workspace.tenant.id; setContext(workspace); setActions(result.items); }
     } catch (e) {
       if (signal?.aborted || generation !== loadGeneration.current) return;
       setContext(null); setActions([]);
@@ -69,5 +71,11 @@ export function useWorkspace() {
     if (!context) throw new Error('Votre espace n’est pas chargé.');
     return api<AuditEvent[]>(`actions/${id}/history`,context.tenant.id);
   }
-  return { context,actions,tenants,error,needsLogin,loading,pending,authentication,refresh: () => load(),switchTenant: setSelectedTenant,createAction,updateAction,history };
+  async function refreshActions() {
+    if(!context) return;
+    const tenant=context.tenant.id;
+    const result=await api<ActionList>('actions?limit=100',tenant);
+    if(activeTenant.current===tenant) setActions(result.items);
+  }
+  return { context,actions,tenants,error,needsLogin,loading,pending,authentication,refresh: () => load(),refreshActions,switchTenant: setSelectedTenant,createAction,updateAction,history };
 }
