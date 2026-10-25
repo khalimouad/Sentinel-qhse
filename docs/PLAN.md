@@ -38,6 +38,8 @@ Six tests métier documentaires passent, en plus des trois tests de configuratio
 
 ### Prochaines étapes
 
+Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
+
 1. Terminer la recette de cette fondation : exécuter le build, les tests d’isolation et le parcours navigateur; connecter un fournisseur OIDC de test et produire le lockfile.
 2. Compléter le socle partagé : terminer la recette documentaire et les fichiers/pièces jointes privés, puis incidents/non-conformités, audits, risques, commentaires, workflows et file de notifications.
 3. Registre des obligations : textes et versions, articles, preuves, responsables, évaluations et décisions humaines; commencer avec des sources vérifiées pour les pays choisis.

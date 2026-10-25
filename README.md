@@ -6,6 +6,8 @@ SaaS sur mesure destiné à l’Afrique et à l’Europe. Cette étape remplace 
 
 La [revue du plan](docs/PLAN.md) décrit les écarts constatés, le travail de cette étape et les modules restants. L’[architecture](docs/ARCHITECTURE.md) décrit les frontières d’accès, l’authentification et le contrat API.
 
+Le dépôt de référence est désormais [khalimouad/Sentinel-qhse](https://github.com/khalimouad/Sentinel-qhse). Le workflow [Verify SaaS foundation](https://github.com/khalimouad/Sentinel-qhse/actions) installe les dépendances, vérifie les types, compile l’application et prépare PostgreSQL 17 pour les tests d’isolation et HTTP. Le premier lancement a échoué avant l’affectation d’un runner et avant toute étape : il ne constitue donc pas un résultat de compilation ou de tests. Le motif de disponibilité du runner reste à vérifier dans les annotations GitHub Actions.
+
 ## Démarrage local
 
 Prérequis : Node.js 22.14 ou supérieur, npm, Docker Compose et accès au registre npm / à l’image PostgreSQL.
