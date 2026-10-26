@@ -3,6 +3,7 @@ import { useCallback,useEffect,useRef,useState } from 'react';
 import { ClipboardCheck,Plus,Search } from 'lucide-react';
 import type { AuditChecklistItem,QualityAudit,QualityAuditDetail,QualityAuditList,ReportCurrency,ReportEvent,ReportSeverity,WorkspaceContext } from '@sentinelle/contracts';
 import AuditReport from './AuditReport';
+import AuditTemplatesPanel from './AuditTemplatesPanel';
 import { api } from '../lib/use-workspace';
 const states={planned:'Planifié',in_progress:'En cours',completed:'Rapport finalisé',cancelled:'Annulé'};
 const reportStates={reported:'Déclarée',in_analysis:'En analyse',action_plan:'Plan d’actions',effectiveness_review:'Vérification d’efficacité',closed:'Clôturée'};
@@ -15,7 +16,11 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   const [search,setSearch]=useState('');
   const [status,setStatus]=useState('');
   const [loading,setLoading]=useState(true);
-  const [busy,setBusy]=useState(false);
+  const [requestBusy,setBusy]=useState(false);
+  const [templateBusy,setTemplateBusy]=useState(false);
+  const [templateDraft,setTemplateDraft]=useState(false);
+  const [templatesOpen,setTemplatesOpen]=useState(false);
+  const busy=requestBusy||templateBusy;
   const [error,setError]=useState('');
   const [creating,setCreating]=useState(false);
   const [editingPlan,setEditingPlan]=useState(false);
@@ -29,9 +34,10 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   const listGeneration=useRef(0);
   const audit=detail?.audit;
   const findings=detail?.findings||[];
-  const dirty=editingPlan||(!!audit&&JSON.stringify(checklist)!==JSON.stringify(audit.checklist));
+  const templateUses=detail?.templateUses||[];
+  const dirty=editingPlan||templateDraft||(!!audit&&JSON.stringify(checklist)!==JSON.stringify(audit.checklist));
   const lead=!!audit&&audit.leadId===context.actor.id;
-  const editable=!editingPlan&&lead&&['planned','in_progress'].includes(audit?.status||'');
+  const editable=!editingPlan&&!templateDraft&&lead&&['planned','in_progress'].includes(audit?.status||'');
   const name=(id:string)=>context.members.find(person=>person.id===id)?.name||'Ancien membre';
   const load=useCallback(async(signal?:AbortSignal)=>{
     const request=++listGeneration.current;
@@ -52,7 +58,7 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   function accept(saved:QualityAuditDetail){setDetail(saved);setChecklist(saved.audit.checklist);setHistory(null);setEditingPlan(false);setShowReport(false);}
   async function open(id:string){
     if(pending.current||(dirty&&!window.confirm('Abandonner les modifications non enregistrées ?')))return;
-    const request=++generation.current;setError('');setDetail(null);setHistory(null);setEditingPlan(false);setCreating(false);
+    const request=++generation.current;setError('');setDetail(null);setHistory(null);setEditingPlan(false);setCreating(false);setTemplateDraft(false);
     try{const result=await api<QualityAuditDetail>(`audits/${id}`,tenant);if(alive.current&&request===generation.current)accept(result);}
     catch(e){if(alive.current&&request===generation.current)setError(message(e));}
   }
@@ -90,9 +96,10 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   }
   if(!context.canWrite)return <div className="module-page"><h1>Audits</h1><p className="report-privacy">La préparation et la réalisation des audits sont réservées aux responsables habilités sur les sites concernés.</p></div>;
   return <div className="module-page documents-page audits-page">
-    <div className="module-header"><div><div className="eyebrow">AMÉLIORATION CONTINUE</div><h1>Audits</h1><p>Planifier, documenter les preuves et suivre les écarts.</p></div><button className="button" disabled={busy} onClick={()=>{if(!dirty||window.confirm('Abandonner les modifications non enregistrées ?')){generation.current++;setCreating(true);setDetail(null);setHistory(null);setEditingPlan(false);setError('');}}}><Plus size={14}/>Planifier un audit</button></div>
+    <div className="module-header"><div><div className="eyebrow">AMÉLIORATION CONTINUE</div><h1>Audits</h1><p>Planifier, documenter les preuves et suivre les écarts.</p></div><button className="button" disabled={busy} onClick={()=>{if(!dirty||window.confirm('Abandonner les modifications non enregistrées ?')){generation.current++;setCreating(true);setDetail(null);setHistory(null);setEditingPlan(false);setTemplatesOpen(false);setTemplateDraft(false);setError('');}}}><Plus size={14}/>Planifier un audit</button><button type="button" className="button button-outline" disabled={busy} onClick={()=>setTemplatesOpen(true)}>Modèles de checklist</button></div>
     {error&&<div className="document-error" role="alert">{error} <button type="button" onClick={()=>{if(audit)void open(audit.id);else void load().catch(e=>setError(message(e)));}}>Actualiser</button></div>}
     {creating&&<AuditForm context={context} siteName={siteName} busy={busy} onCancel={()=>setCreating(false)} onSave={values=>mutate('audits',values)}/>}
+    {templatesOpen&&<AuditTemplatesPanel key={`${audit?.id||'library'}.${audit?.standard||''}`} context={context} siteName={siteName} audit={audit} disabled={busy||editingPlan} allowApply={!dirty} onBusyChange={setTemplateBusy} onDraftChange={setTemplateDraft} onClose={()=>setTemplatesOpen(false)} onApply={(templateId,replace)=>audit?mutate(`audits/${audit.id}/template`,{revision:audit.revision,templateId,replace}):Promise.resolve()}/>}
     <div className="documents-layout">
       <section className="panel documents-list" aria-label="Liste des audits">
         <label className="documents-toolbar"><Search size={14}/><input aria-label="Rechercher un audit" placeholder="Titre ou référentiel…" value={search} disabled={busy} onChange={e=>setSearch(e.target.value)}/></label>
@@ -108,6 +115,7 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
           <p className="audit-scope">{audit.scope}</p>
           <p className="attachments-hint">Les questions et clauses sont figées au démarrage. Chaque résultat nécessite une preuve ou une justification. La finalisation du rapport ne clôture pas les actions correctives.</p>
           {!lead&&['planned','in_progress'].includes(audit.status)&&<p className="report-privacy">La checklist et les décisions de réalisation sont réservées à {name(audit.leadId)}.</p>}
+          {!!templateUses.length&&<div className="audit-template-provenance"><h3>Modèles copiés dans cet audit</h3><p className="attachments-hint">Traçabilité des copies initiales. La checklist peut ensuite être adaptée avant démarrage.</p>{templateUses.map(use=><p key={use.id}><b>{use.code} · V{use.number}</b> · Révision {use.appliedRevision} · {name(use.appliedBy)} · {new Date(use.appliedAt).toLocaleString('fr-FR')}</p>)}</div>}
           <form onSubmit={e=>{e.preventDefault();void mutate(`audits/${audit.id}/checklist`,{revision:audit.revision,checklist},'PATCH');}}>
             <fieldset className="audit-checklist" disabled={!editable||busy}>
               <legend>Checklist · {checklist.filter(item=>item.result!=='pending').length}/{checklist.length} évalués</legend>

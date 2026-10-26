@@ -85,13 +85,24 @@ export interface QualityAudit {
   reportSnapshot:AuditReportSnapshot|null; createdAt:string; updatedAt:string;
 }
 export interface AuditFinding { id:string; itemId:string; reportId:string; reportStatus:ReportStatus; createdBy:string; createdAt:string }
-export interface QualityAuditDetail { audit:QualityAudit; findings:AuditFinding[] }
+export interface QualityAuditDetail { audit:QualityAudit; findings:AuditFinding[]; templateUses:AuditTemplateUse[] }
 export interface QualityAuditList { items:QualityAudit[]; total:number }
 
 export interface AuditReportSnapshot {
-  schemaVersion?:number; auditId?:string; tenantName?:string; siteName?:string;
+  schemaVersion?:number; templateSources?:AuditTemplateSource[]; auditId?:string; tenantName?:string; siteName?:string;
   title:string; standard:string; scope:string; siteId:string; startsOn:string; endsOn:string;
   leadId:string; auditeeId:string; leadName?:string; auditeeName?:string;
   completedBy:string; completedByName?:string; completedAt:string; conclusion:string;
   checklist:AuditChecklistItem[]; findings:{itemId:string;reportId:string}[];
 }
+
+export interface AuditTemplate {
+  id:string; siteId:string; code:string; number:number; title:string; standard:string;
+  changeNote:string; checklist:AuditChecklistItem[]; contentSha256:string; createdBy:string; createdAt:string;
+}
+export interface AuditTemplateList { items:AuditTemplate[]; total:number }
+export interface AuditTemplateSource {
+  templateId:string; code:string; number:number; title:string; contentSha256:string;
+  appliedRevision:number; appliedBy:string; appliedAt:string;
+}
+export interface AuditTemplateUse extends AuditTemplateSource { id:string }

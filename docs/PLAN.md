@@ -68,6 +68,14 @@ Le rapport finalisé dispose maintenant d’une présentation imprimable via le 
 
 Les contrôles de syntaxe Node des fichiers compatibles et la vérification des espaces Git ont été effectués. Aucun test supplémentaire n’a été ajouté ou exécuté. La compilation, l’application des migrations et la recette navigateur/impression demeurent ouvertes; les dépendances de compilation ne sont pas installées dans cet environnement.
 
+### Suite audits : modèles de checklist versionnés
+
+La migration `007_audit_templates.sql` ajoute la bibliothèque par site et ses versions immuables, avec code, titre, référentiel/édition, description de changement, auteur/date et empreinte de checklist. Le menu Audits expose création/publication, nouvelle version, recherche, pagination et historique des 100 dernières versions. Les managers/admins sont limités à leurs sites autorisés; les lecteurs n’accèdent pas à cet espace.
+
+Le responsable d’un audit planifié peut copier une version compatible du même site, avec confirmation de remplacement si une checklist existe. Les questions sont copiées sans résultats ni preuves avec de nouveaux identifiants. Le verrou de l’audit, sa révision attendue et l’écriture atomique de la provenance évitent l’écrasement concurrent ou une source fictive sans copie correspondante. Le rapport final conserve toutes les sources copiées; le contenu final de l’audit reste distinct et peut être adapté avant démarrage. Les modifications ultérieures du modèle ne se propagent jamais aux audits existants.
+
+Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git ont été effectués. Aucun test nouveau n’a été ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur restent ouvertes. Programme annuel, qualification et équipe d’auditeurs, approbation/retrait des modèles, partage entre sites, pièces jointes d’audit et diffusion restent à développer.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).

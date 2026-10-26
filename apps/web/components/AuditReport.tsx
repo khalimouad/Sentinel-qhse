@@ -30,6 +30,7 @@ export default function AuditReport({snapshot,auditId,onClose}:{snapshot:AuditRe
         const finding=snapshot.findings.find(finding=>finding.itemId===item.id);
         return <section className="audit-report-item" key={item.id}><h3>{index+1}. Clause {item.clause} · {results[item.result]}</h3><p className="audit-report-text"><b>Question</b><br/>{item.question}</p><p className="audit-report-text"><b>Preuve / justification</b><br/>{item.evidence}</p>{finding&&<p className="audit-report-id">Non-conformité liée : {finding.reportId}</p>}</section>;
       })}</section>
+      {!!snapshot.templateSources?.length&&<section><h2>Origine des checklists</h2><p>Versions copiées lors de la préparation; les questions ci-dessus constituent le contenu final de l’audit.</p>{snapshot.templateSources.map(source=><div key={`${source.templateId}.${source.appliedRevision}`}><p>{source.code} · V{source.number} · {source.title} · Copié à la révision {source.appliedRevision}</p><p className="audit-report-id">SHA-256 du modèle : {source.contentSha256}<br/>Copié par : {source.appliedBy} · {source.appliedAt}</p></div>)}</section>}
       <section><h2>Conclusion</h2><p className="audit-report-text">{snapshot.conclusion}</p></section>
       <footer>Document issu de l’enregistrement finalisé. La finalisation du rapport ne vaut pas clôture des non-conformités ni signature électronique qualifiée.</footer>
     </article>

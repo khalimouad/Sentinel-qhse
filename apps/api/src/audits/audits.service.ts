@@ -1,8 +1,10 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { AuditFinding, QualityAudit, QualityAuditDetail, QualityAuditList, ReportEvent } from '@sentinelle/contracts';
+import type { AuditFinding, AuditTemplate, QualityAudit, QualityAuditDetail, QualityAuditList, ReportEvent } from '@sentinelle/contracts';
 import type { Principal } from '../auth.js';
 import { Database, type TenantSession } from '../database.js';
+import { ApplyAuditTemplateDto } from './templates.dto.js';
+import { templateColumns, templateUses } from './templates.service.js';
 import { AuditFindingDto, AuditQuery, CreateAuditDto, DecideAuditDto, SaveChecklistDto, UpdateAuditPlanDto } from './dto.js';
 const columns=`a.id,a.title,a.standard,a.scope,a.site_id AS "siteId",s.name AS "siteName",a.starts_on::text AS "startsOn",a.ends_on::text AS "endsOn",
   a.lead_id AS "leadId",a.auditee_id AS "auditeeId",a.created_by AS "createdBy",a.status,a.checklist,a.conclusion,a.replan_reason AS "replanReason",a.revision,
@@ -20,7 +22,7 @@ export class AuditsService {
     if(!rows[0])throw new NotFoundException('Audit introuvable.');
     const findings=await session.db.query<AuditFinding>(`SELECT f.id,f.item_id AS "itemId",f.report_id AS "reportId",f.created_by AS "createdBy",f.created_at AS "createdAt",r.status AS "reportStatus"
       FROM app.audit_findings f JOIN app.reports r ON r.id=f.report_id AND r.tenant_id=f.tenant_id WHERE f.tenant_id=$1 AND f.audit_id=$2 ORDER BY f.created_at,f.id`,[session.tenant.id,id]);
-    return {audit:rows[0],findings:findings.rows};
+    return {audit:rows[0],findings:findings.rows,templateUses:await templateUses(session,id)};
   }
   private async lock(session:TenantSession,id:string,revision:number,leadOnly=true) {
     this.access(session);
@@ -83,6 +85,22 @@ export class AuditsService {
           throw new ConflictException('Un constat lié à une non-conformité ne peut pas être reclassé.');
       }
       await session.db.query('UPDATE app.audits SET checklist=$3 WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id,JSON.stringify(input.checklist)]);
+      return this.detailIn(session,id);
+    });
+  }
+  applyTemplate(principal:Principal,tenant:string|undefined,id:string,input:ApplyAuditTemplateDto) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      const {audit}=await this.lock(session,id,input.revision);
+      if(audit.status!=='planned')throw new ConflictException('La checklist ne peut plus être remplacée après le démarrage.');
+      if(audit.checklist.length&&!input.replace)throw new ConflictException('Confirmez le remplacement de la checklist existante.');
+      const {rows}=await session.db.query<AuditTemplate>(`SELECT ${templateColumns} FROM app.audit_templates WHERE tenant_id=$1 AND id=$2 AND site_id=$3`,[session.tenant.id,input.templateId,audit.siteId]);
+      const template=rows[0];
+      if(!template)throw new NotFoundException('Modèle introuvable pour ce site.');
+      if(template.standard!==audit.standard)throw new BadRequestException('Le référentiel et son édition doivent correspondre exactement à ceux de l’audit.');
+      const checklist=template.checklist.map(item=>({...item,id:randomUUID(),result:'pending',evidence:''}));
+      const updated=await session.db.query<{revision:number}>('UPDATE app.audits SET checklist=$3 WHERE tenant_id=$1 AND id=$2 RETURNING revision',[session.tenant.id,id,JSON.stringify(checklist)]);
+      await session.db.query(`INSERT INTO app.audit_template_uses(id,tenant_id,site_id,audit_id,template_id,applied_revision,applied_by) VALUES($1,$2,$3,$4,$5,$6,$7)`,
+        [randomUUID(),session.tenant.id,audit.siteId,id,template.id,updated.rows[0].revision,session.actor.id]);
       return this.detailIn(session,id);
     });
   }
