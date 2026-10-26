@@ -1,4 +1,4 @@
-# Revue du plan — mise à jour du 25 octobre 2026
+# Revue du plan — mise à jour du 26 octobre 2026
 
 ## Décisions confirmées
 
@@ -52,12 +52,20 @@ La migration `004_attachments.sql` hérite des droits tenant/site/parent, protè
 
 Le profil Docker `storage` et `storage:init` configurent un MinIO local privé; la CI comprend désormais ses tests d’intégration. Dix tests d’intégrité/métadonnées et un test de configuration supplémentaires passent (26 tests locaux au total). La compilation et la recette PostgreSQL/MinIO/SSO/navigateur restent ouvertes. Les copies finales sont conservées après retrait de l’association pour l’audit; antivirus, politique de rétention/purge, réconciliation des objets orphelins et export intégral restent à compléter.
 
+### Incrément audits opérationnels — 26 octobre
+
+Le menu Audits est relié à l’API et à la migration `005_audits.sql`. Il permet de planifier une mission par site/référentiel, périmètre et dates avec responsable d’audit et responsable audité distincts; préparer une checklist de 30 points maximum; figer ses questions au démarrage; documenter résultats et preuves; créer des non-conformités liées aux écarts et ouvrir leur suivi existant. La création du signalement et du lien est atomique et sérialisée avec les décisions de l’audit.
+
+Seul le responsable d’audit désigné réalise la checklist et finalise; les managers/admins du site consultent et planifient. Les lecteurs n’accèdent pas à ce premier espace opérationnel. Toute finalisation exige une conclusion, des résultats justifiés et une non-conformité par écart. Le rapport JSON est figé dans la base et exportable, avec les identités, dates, preuves et liens. Finaliser l’audit ne clôture pas les non-conformités : leur analyse, actions et vérification indépendante conservent leur cycle existant. L’historique et les liens ne sont pas modifiables par le rôle applicatif.
+
+La compilation, les migrations et la recette de ce nouveau parcours restent à effectuer. L’installation des dépendances a de nouveau échoué sur une connexion réseau refusée par l’environnement. Aucun nouveau résultat de test n’est revendiqué pour cet incrément. Programme annuel, replanification, qualification et équipe d’auditeurs, modèles de checklist, pièces jointes d’audit, PDF et diffusion restent à compléter.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
 
 1. Terminer la recette de cette fondation : exécuter le build, les tests d’isolation et le parcours navigateur; connecter un fournisseur OIDC de test et produire le lockfile.
-2. Compléter le socle partagé : terminer la recette documentaire, des signalements et fichiers privés, puis audits, risques, commentaires et file de notifications; définir le scan et la conservation des fichiers avant exploitation.
+2. Compléter le socle partagé : terminer la recette documentaire, des signalements et fichiers privés, puis compléter les audits, risques, commentaires et file de notifications; définir le scan et la conservation des fichiers avant exploitation.
 3. Registre des obligations : textes et versions, articles, preuves, responsables, évaluations et décisions humaines; commencer avec des sources vérifiées pour les pays choisis.
 4. Anticorruption : tiers, cadeaux/conflits, alertes anonymes et enquêtes avec une politique d’accès distincte. Les droits du socle ne doivent pas donner accès aux enquêtes.
 5. Agent de veille : ingestion par source/pays, extraction et recherche sourcée, suivi des versions, validation humaine, évaluations sur corpus contrôlé avant mise en service.

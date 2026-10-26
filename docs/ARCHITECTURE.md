@@ -58,7 +58,7 @@ Le déclarant est dérivé de l’identité vérifiée. Les faits initiaux ne pe
 
 Le cycle est `reported → in_analysis → action_plan → effectiveness_review → closed`. La vérification requiert au moins une action liée et toutes les actions clôturées; le vérificateur nommé, distinct du responsable, peut conclure avec preuve narrative ou retourner au plan d’actions avec motif. Les mutations attendent une révision et prennent un verrou sur le signalement. Les actions référencent un signalement par une clé étrangère composite tenant/site. Leur création et leurs changements de statut mettent aussi à jour la révision et l’historique du signalement; une action rouverte fait revenir une vérification/clôture au plan d’actions et efface son résultat courant d’efficacité. Les décisions antérieures restent dans le journal immuable.
 
-Les politiques de lecture des actions et de leur audit prennent en compte le signalement parent afin d’éviter les fuites par les vues transversales. Les photos/pièces jointes et la collecte hors connexion dépendent du module de stockage à venir. Les données médicales, alertes anonymes et enquêtes d’anticorruption doivent suivre leurs propres politiques et parcours dédiés.
+Les politiques de lecture des actions et de leur audit prennent en compte le signalement parent afin d’éviter les fuites par les vues transversales. Les photos/pièces jointes des signalements utilisent le stockage décrit ci-dessous; la collecte hors connexion reste à développer. Les données médicales, alertes anonymes et enquêtes d’anticorruption doivent suivre leurs propres politiques et parcours dédiés.
 
 ## Stockage et preuve documentaire
 
@@ -75,3 +75,12 @@ L’API n’expose jamais les identifiants du fournisseur. Les liens GET expiren
 ## Déploiement à préciser
 
 La base conserve une région et les juridictions par tenant afin de préparer le routage et la veille; elle ne déploie aucune infrastructure régionale. Avant lancement Afrique/Europe : choisir les pays, la région primaire, les transferts autorisés, le contrat de traitement des données et les sous-traitants. Prévoir une stratégie de sauvegarde/restauration, les objectifs RPO/RTO, la supervision et une authentification fournisseur de test avant production.
+
+
+## Audits opérationnels
+
+Routes `/audits` (GET/POST), `/audits/:id` (GET), `/:id/checklist` (PATCH), `/:id/decisions`, `/:id/findings` (POST) et `/:id/history` (GET). Les mutations comportent la révision attendue. La ligne d’audit est verrouillée avant modification, création de constat ou décision; un appel obsolète reçoit 409. Une création de constat écrit le signalement de type non-conformité et son lien dans la même transaction. La contrainte unique par audit/point évite les doublons.
+
+`app.audits`, `audit_findings` et `audit_session_events` appliquent FORCE RLS avec tenant/site et rôle manager/admin, y compris lors des exports. Le responsable d’audit et le responsable audité sont deux managers/admins habilités distincts. La checklist est un tableau JSON borné et validé par DTO et contrainte SQL. Son responsable désigné prépare les questions; après démarrage, seules les réponses/preuves peuvent évoluer, et un écart lié ne peut plus être reclassé. Les déclencheurs contrôlent les transitions et figent le rapport à finalisation. Le rôle applicatif n’a aucun droit d’écriture sur le snapshot, les dates de finalisation, les identités ou l’historique; les liens de constats sont immuables.
+
+Le snapshot contient les identités, dates, périmètre, conclusion, checklist et références des non-conformités au moment de finalisation. Les statuts actuels des non-conformités sont chargés séparément et peuvent continuer à évoluer. Cette première version exporte du JSON; elle ne fournit pas de signature qualifiée, programme annuel, qualification des auditeurs, documents normatifs sous licence, PDF ou accès d’enquête anticorruption.

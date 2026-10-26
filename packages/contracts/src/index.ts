@@ -75,3 +75,15 @@ export interface Attachment {
 export interface AttachmentList { items:Attachment[]; canUpload:boolean; uploadEnabled:boolean; maxBytes:number; maxFiles:number }
 export interface UploadTicket { attachment:Attachment; upload:{ url:string; fields:Record<string,string>; expiresAt:string } }
 export interface AttachmentEvent{id:string;actorId:string;actorName:string;occurredAt:string;operation:string;before:Record<string,unknown>|null;after:Record<string,unknown>}
+export type AuditStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
+export type AuditResult = 'pending' | 'conform' | 'nonconform' | 'not_applicable';
+export interface AuditChecklistItem { id:string; clause:string; question:string; result:AuditResult; evidence:string }
+export interface QualityAudit {
+  id:string; title:string; standard:string; scope:string; siteId:string; siteName:string;
+  startsOn:string; endsOn:string; leadId:string; auditeeId:string; createdBy:string; status:AuditStatus;
+  checklist:AuditChecklistItem[]; conclusion:string; revision:number; completedAt:string|null;
+  reportSnapshot:Record<string,unknown>|null; createdAt:string; updatedAt:string;
+}
+export interface AuditFinding { id:string; itemId:string; reportId:string; reportStatus:ReportStatus; createdBy:string; createdAt:string }
+export interface QualityAuditDetail { audit:QualityAudit; findings:AuditFinding[] }
+export interface QualityAuditList { items:QualityAudit[]; total:number }

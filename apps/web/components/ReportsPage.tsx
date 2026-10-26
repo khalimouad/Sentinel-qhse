@@ -9,7 +9,7 @@ const kinds:Record<ReportKind,string>={ incident:'Incident',near_miss:'Presque-a
 const states:Record<ReportStatus,string>={ reported:'Déclaré',in_analysis:'En analyse',action_plan:'Plan d’actions',effectiveness_review:'Vérification d’efficacité',closed:'Clôturé' };
 const severities={ low:'Faible',medium:'Modérée',high:'Élevée',critical:'Critique' };
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : 'L’opération a échoué.';
-export default function ReportsPage({ context,siteName,onActionsChanged }: { context:WorkspaceContext;siteName:string;onActionsChanged:()=>Promise<void> }) {
+export default function ReportsPage({ context,siteName,onActionsChanged,initialReportId }: { context:WorkspaceContext;siteName:string;onActionsChanged:()=>Promise<void>;initialReportId?:string }) {
   const tenant=context.tenant.id;
   const [reports,setReports]=useState<Report[]>([]);
   const [detail,setDetail]=useState<ReportDetail|null>(null);
@@ -44,11 +44,12 @@ export default function ReportsPage({ context,siteName,onActionsChanged }: { con
   },[loadList]);
   useEffect(()=>{selection.current++;setDetail(null);setHistory(null);setForm(null);setAnalysisDirty(false);},[siteName]);
   useEffect(()=>()=>{selection.current++;},[]);
-  async function openReport(id:string){
+  const openReport=useCallback(async(id:string)=>{
     const request=++selection.current;setError('');setHistory(null);setDetail(null);setAnalysisDirty(false);
     try{const saved=await api<ReportDetail>(`reports/${id}`,tenant);if(request===selection.current) setDetail(saved);}
     catch(e){if(request===selection.current) setError(errorMessage(e));}
-  }
+  },[tenant]);
+  useEffect(()=>{if(initialReportId)void openReport(initialReportId);},[initialReportId,openReport]);
   async function mutate(path:string,input:unknown,method='POST',changesActions=false){
     if(pending||fileBusy)return;const request=++selection.current;setPending(true);setError('');
     try{
