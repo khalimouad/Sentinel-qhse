@@ -9,7 +9,7 @@ import { decideReport,ReportWorkflowError,validateCost } from './workflow.mjs';
 
 const columns=`r.id,r.title,r.description,r.kind,r.severity,r.site_id AS "siteId",s.name AS "siteName",r.occurred_at AS "occurredAt",r.reported_by AS "reportedBy",r.status,
   r.owner_id AS "ownerId",r.verifier_id AS "verifierId",r.correction,r.root_cause AS "rootCause",r.five_whys AS "fiveWhys",r.cost_amount::text AS "costAmount",r.currency,r.revision,
-  r.effectiveness,r.effectiveness_note AS "effectivenessNote",r.reviewed_by AS "reviewedBy",r.reviewed_at AS "reviewedAt",r.closed_at AS "closedAt",r.created_at AS "createdAt",r.updated_at AS "updatedAt"`;
+  r.effectiveness,r.effectiveness_note AS "effectivenessNote",r.reviewed_by AS "reviewedBy",r.reviewed_at AS "reviewedAt",r.closed_at AS "closedAt",r.created_at AS "createdAt",r.updated_at AS "updatedAt",r.attachments_sha256 AS "attachmentsSha256"`;
 const joins='FROM app.reports r JOIN app.sites s ON s.id=r.site_id';
 const kinds={ incident:'Incident',near_miss:'Presque-accident',nonconformity:'Non-conformité',complaint:'Réclamation' };
 
@@ -68,6 +68,10 @@ export class ReportsService {
     return this.database.withTenant(principal,tenant,async session=>{
       const report=await this.lock(session,id,input.revision);
       const detail=await this.detailIn(session,id);
+      if(['start_analysis','request_review','close'].includes(input.command)){
+        const pending=await session.db.query("SELECT id FROM app.attachments WHERE tenant_id=$1 AND report_id=$2 AND status='pending' LIMIT 1",[session.tenant.id,id]);
+        if(pending.rowCount)throw new ConflictException('Terminez ou annulez les envois de fichiers avant de poursuivre.');
+      }
       let status:string;
       try{ status=decideReport(report,input.command,session.actor.id,session.canWrite,detail.actions,input.note||''); }
       catch(e){ if(e instanceof ReportWorkflowError) throw new HttpException(e.message,e.status); throw e; }

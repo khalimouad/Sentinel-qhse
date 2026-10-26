@@ -17,9 +17,16 @@ export function readConfig(env = process.env) {
   }
   const port = Number(env.API_PORT || 4000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid API_PORT.');
+  let storage=null;
+  if(env.S3_BUCKET){
+    if(!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(env.S3_BUCKET)||!env.S3_REGION)throw new Error('A valid S3_BUCKET and explicit S3_REGION are required.');
+    if(env.S3_ENDPOINT){const endpoint=new URL(env.S3_ENDPOINT);if(endpoint.protocol!=='https:'&&!(development&&endpoint.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(endpoint.hostname)))throw new Error('S3_ENDPOINT requires HTTPS except for local development.');if(endpoint.username||endpoint.password||endpoint.search||endpoint.hash)throw new Error('S3_ENDPOINT must not include credentials, query or fragment.');}
+    storage={bucket:env.S3_BUCKET,region:env.S3_REGION,endpoint:env.S3_ENDPOINT,forcePathStyle:env.S3_FORCE_PATH_STYLE==='true'};
+  }
   return {
     host, port, devAuth, databaseUrl: env.DATABASE_URL,
     issuer: env.OIDC_ISSUER || '', audience: env.OIDC_AUDIENCE || '', jwksUri: env.OIDC_JWKS_URI || '',
     devIssuer: 'urn:sentinelle:development', devSubject: 'jean-dupont',
+    storage,
   };
 }

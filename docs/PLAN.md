@@ -44,12 +44,20 @@ La migration `003_reports.sql` ajoute tables, contraintes, politiques, historiqu
 
 Six nouveaux tests locaux passent (15 au total). Les tests PostgreSQL couvrent usurpation de déclarant, sites, confidentialité, indépendance de la vérification et réouverture automatique; un test HTTP déroule le cycle complet. Ces tests d’intégration et le build restent à exécuter. Les photos/fichiers, notifications, diagramme Ishikawa, indicateurs SST et signalements anonymes/confidentiels ne sont pas ajoutés par cet incrément.
 
+### Incrément pièces jointes privées
+
+Le code ajoute stockage compatible S3, uploads temporaires par politique signée, vérification serveur des octets/taille/type/SHA-256 et copie finale distincte. Les téléchargements sont autorisés depuis le parent et signés pour 60 secondes. Les écrans Documents et Incidents permettent l’ajout de fichiers/photos, la finalisation/reprise d’un envoi, son annulation et le téléchargement. Limites initiales : 10 Mo et 20 fichiers actifs par parent.
+
+La migration `004_attachments.sql` hérite des droits tenant/site/parent, protège l’historique et actualise les révisions et manifestes des parents. Les fichiers d’une version soumise sont figés. Les fichiers d’un signalement sont figés pendant sa vérification/clôture; un lecteur peut joindre à sa propre déclaration sans gagner le droit d’analyse. Un upload incomplet bloque soumission documentaire, démarrage d’analyse ou vérification d’efficacité jusqu’à finalisation/annulation.
+
+Le profil Docker `storage` et `storage:init` configurent un MinIO local privé; la CI comprend désormais ses tests d’intégration. Dix tests d’intégrité/métadonnées et un test de configuration supplémentaires passent (26 tests locaux au total). La compilation et la recette PostgreSQL/MinIO/SSO/navigateur restent ouvertes. Les copies finales sont conservées après retrait de l’association pour l’audit; antivirus, politique de rétention/purge, réconciliation des objets orphelins et export intégral restent à compléter.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
 
 1. Terminer la recette de cette fondation : exécuter le build, les tests d’isolation et le parcours navigateur; connecter un fournisseur OIDC de test et produire le lockfile.
-2. Compléter le socle partagé : terminer la recette documentaire et des signalements, les fichiers/pièces jointes privés, puis audits, risques, commentaires et file de notifications.
+2. Compléter le socle partagé : terminer la recette documentaire, des signalements et fichiers privés, puis audits, risques, commentaires et file de notifications; définir le scan et la conservation des fichiers avant exploitation.
 3. Registre des obligations : textes et versions, articles, preuves, responsables, évaluations et décisions humaines; commencer avec des sources vérifiées pour les pays choisis.
 4. Anticorruption : tiers, cadeaux/conflits, alertes anonymes et enquêtes avec une politique d’accès distincte. Les droits du socle ne doivent pas donner accès aux enquêtes.
 5. Agent de veille : ingestion par source/pays, extraction et recherche sourcée, suivi des versions, validation humaine, évaluations sur corpus contrôlé avant mise en service.

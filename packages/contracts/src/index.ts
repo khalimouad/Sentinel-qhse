@@ -35,6 +35,7 @@ export interface DocumentVersion {
   authorId: string; reviewerId: string; approverId: string; revision: number;
   reviewedAt: string | null; approvedAt: string | null; decisionNote: string | null;
   acknowledged: boolean; createdAt: string;
+  attachmentsSha256: string;
 }
 export interface DocumentDetail { document: DocumentSummary; versions: DocumentVersion[] }
 export interface DocumentList { items: DocumentSummary[]; total: number }
@@ -55,6 +56,7 @@ export interface Report {
   effectiveness: 'not_evaluated' | 'effective' | 'ineffective'; effectivenessNote: string | null;
   reviewedBy: string | null; reviewedAt: string | null; closedAt: string | null;
   createdAt: string; updatedAt: string;
+  attachmentsSha256: string;
 }
 export interface ReportDetail { report: Report; actions: Action[] }
 export interface ReportList { items: Report[]; total: number }
@@ -62,3 +64,14 @@ export interface ReportEvent {
   id: string; actorId: string; occurredAt: string; operation: string;
   before: Record<string,unknown> | null; after: Record<string,unknown>;
 }
+export type AttachmentParent = 'document_version' | 'report';
+export type AttachmentStatus = 'pending' | 'ready' | 'rejected' | 'deleted';
+export interface Attachment {
+  id:string; parentType:AttachmentParent; parentId:string; filename:string; mimeType:string;
+  size:number; sha256:string; status:AttachmentStatus; revision:number; createdBy:string;
+  createdAt:string; expiresAt:string; readyAt:string|null; rejectionReason:string|null;
+  canConfirm:boolean; canRemove:boolean;
+}
+export interface AttachmentList { items:Attachment[]; canUpload:boolean; uploadEnabled:boolean; maxBytes:number; maxFiles:number }
+export interface UploadTicket { attachment:Attachment; upload:{ url:string; fields:Record<string,string>; expiresAt:string } }
+export interface AttachmentEvent{id:string;actorId:string;actorName:string;occurredAt:string;operation:string;before:Record<string,unknown>|null;after:Record<string,unknown>}

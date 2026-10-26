@@ -11,7 +11,8 @@ export async function api<T>(path: string,tenant?: string,options?: RequestInit)
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     const messages: Record<number,string> = { 401: 'Connectez-vous pour accéder à votre espace.', 403: 'Vous n’avez pas accès à cet espace ou à cette opération.', 409: 'Les données ou le statut ont changé. Actualisez avant de recommencer.' };
-    throw new ApiError(response.status,messages[response.status] || (typeof body.message === 'string' ? body.message : 'L’opération a échoué.'));
+    const specific=typeof body.message==='string'?body.message:undefined;
+    throw new ApiError(response.status,(response.status===409?specific:undefined)||messages[response.status]||specific||'L’opération a échoué.');
   }
   return response.json();
 }

@@ -9,6 +9,9 @@ import { DocumentsController } from './documents/documents.controller.js';
 import { DocumentsService } from './documents/documents.service.js';
 import { ReportsController } from './reports/reports.controller.js';
 import { ReportsService } from './reports/reports.service.js';
+import { AttachmentsController } from './attachments/attachments.controller.js';
+import { AttachmentsService } from './attachments/attachments.service.js';
+import { ObjectStorage } from './attachments/storage.js';
 
 @Controller('health')
 class HealthController {
@@ -16,7 +19,7 @@ class HealthController {
   @Get() healthy() { return this.database.healthy(); }
 }
 @Module({
-  controllers: [HealthController,WorkspaceController,ActionsController,DocumentsController,ReportsController],
-  providers: [{ provide: CONFIG, useFactory: () => readConfig() },Database,IdentityGuard,ActionsService,DocumentsService,ReportsService],
+  controllers: [HealthController,WorkspaceController,ActionsController,DocumentsController,ReportsController,AttachmentsController],
+  providers: [{ provide: CONFIG, useFactory: () => readConfig() },Database,IdentityGuard,ActionsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage],
 })
 export class AppModule {}

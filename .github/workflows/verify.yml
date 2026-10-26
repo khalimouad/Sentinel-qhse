@@ -31,6 +31,13 @@ jobs:
       DATABASE_ADMIN_URL: postgresql://sentinelle_owner:ci-owner-only@127.0.0.1:5432/sentinelle
       DATABASE_URL: postgresql://sentinelle_app:sentinelle-local-only@127.0.0.1:5432/sentinelle
       NEXT_TELEMETRY_DISABLED: '1'
+      POSTGRES_PASSWORD: ci-owner-only
+      S3_BUCKET: sentinelle-files
+      S3_REGION: us-east-1
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_FORCE_PATH_STYLE: 'true'
+      AWS_ACCESS_KEY_ID: sentinelle-local
+      AWS_SECRET_ACCESS_KEY: sentinelle-minio-local-only
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,3 +79,12 @@ jobs:
         run: npm run db:seed
       - name: PostgreSQL isolation and authenticated HTTP tests
         run: npm run test:integration
+      - name: Start local private object storage
+        run: docker compose --profile storage up -d minio
+      - name: Initialize local object storage
+        env:
+          NODE_ENV: development
+          DEV_AUTH_ENABLED: 'true'
+        run: npm run storage:init
+      - name: Private upload and download integration tests
+        run: npm run test:storage

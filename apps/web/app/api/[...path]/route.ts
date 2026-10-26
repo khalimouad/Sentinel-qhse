@@ -25,7 +25,8 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   try {
     const url = new URL(`/api/${path.map(encodeURIComponent).join('/')}`,process.env.INTERNAL_API_URL || 'http://127.0.0.1:4000');
     url.search = request.nextUrl.search;
-    const upstream = await fetch(url,{ method: request.method,headers,body,cache: 'no-store',redirect: 'error',signal: AbortSignal.timeout(20000) });
+    const timeout=path[1]==='attachments'&&path.at(-1)==='confirm'?60000:20000;
+    const upstream = await fetch(url,{ method: request.method,headers,body,cache: 'no-store',redirect: 'error',signal: AbortSignal.timeout(timeout) });
     return new Response(upstream.body,{ status: upstream.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
   } catch { return NextResponse.json({ message: 'Le service est temporairement indisponible.' },{ status: 503 }); }
 }

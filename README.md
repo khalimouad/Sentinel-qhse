@@ -2,7 +2,7 @@
 
 SaaS sur mesure destiné à l’Afrique et à l’Europe. Cette étape remplace le prototype Vite avec actions locales par une fondation Next.js + NestJS + PostgreSQL, avec contrats TypeScript, identité OIDC et plan d’actions persistant.
 
-**État : fondation SaaS, gestion documentaire et incidents/non-conformités ajoutés, compilation et intégration PostgreSQL/SSO encore à vérifier.** Quinze tests locaux passent : trois de configuration, six de workflow documentaire et six de traitement des signalements. Les tests PostgreSQL, HTTP et le build nécessitent encore l’installation des dépendances et une base disponible; aucun résultat de recette complète ou de sécurité en production n’est revendiqué.
+**État : fondation SaaS, gestion documentaire, incidents/non-conformités et pièces jointes privées ajoutés, compilation et intégration PostgreSQL/SSO/stockage encore à vérifier.** Vingt-six tests locaux passent : quatre de configuration, six de workflow documentaire, six de traitement des signalements et dix de validation/intégrité des fichiers. Les tests PostgreSQL, HTTP, stockage et le build restent à exécuter avec leurs services; aucun résultat de recette complète ou de sécurité en production n’est revendiqué.
 
 La [revue du plan](docs/PLAN.md) décrit les écarts constatés, le travail de cette étape et les modules restants. L’[architecture](docs/ARCHITECTURE.md) décrit les frontières d’accès, l’authentification et le contrat API.
 
@@ -27,6 +27,25 @@ La configuration d’exemple active une identité locale fixe et des données de
 
 Les anciennes actions dans le stockage du navigateur ne sont pas reprises automatiquement. Leurs valeurs restent dans ce navigateur; la nouvelle application charge son plan depuis l’API.
 
+## Stockage local facultatif
+
+Le stockage reste désactivé tant que les variables S3 ne sont pas renseignées. Pour le tester, décommenter le bloc de stockage local dans `.env.example` après l’avoir copié dans `.env`, puis :
+
+```sh
+docker compose --profile storage up -d minio
+npm run storage:init
+npm run db:migrate
+npm run dev
+```
+
+Le profil MinIO est accessible uniquement sur loopback (API 9000, console 9001). L’initialisation est limitée aux endpoints locaux en mode développement : elle crée un bucket privé et une expiration des objets temporaires `staging/` après un jour. Les origines navigateur locales sont configurées dans Compose. Les paramètres et identifiants d’exemple ne sont pas destinés à la production.
+
+Les pièces jointes acceptent PDF, DOCX, XLSX, TXT, CSV et photos JPEG/PNG/WebP/HEIC/HEIF, jusqu’à 10 Mo par fichier et 20 fichiers actifs par version documentaire ou signalement. Le client envoie dans une zone temporaire avec une politique signée limitée à la clé, au type et à la taille exacte. L’API copie dans une clé finale distincte puis vérifie les octets, la signature de type et SHA-256 avant disponibilité. Un ancien formulaire d’envoi ne peut pas remplacer la copie finale.
+
+Les fichiers d’une version documentaire sont modifiables seulement par son auteur au stade brouillon; leur manifeste est figé à la soumission. Un déclarant peut joindre des fichiers à son propre signalement au stade déclaré; les responsables habilités peuvent le faire jusqu’à la demande de vérification d’efficacité. Les envois en attente bloquent ces étapes et peuvent être terminés ou annulés depuis l’interface. Le téléchargement passe par un contrôle d’accès puis un lien valable 60 secondes, avec téléchargement forcé.
+
+Retirer un fichier masque son association; les copies finales vérifiées sont conservées pour l’audit. La politique de rétention/purge et la réconciliation des copies finales éventuellement orphelines restent à définir avant exploitation. Les objets temporaires sont nettoyés au mieux et expirent via le stockage. La vérification de type est un contrôle de signature/en-tête et d’encodage, pas une analyse antivirus ni une validation complète de formats Office/PDF. Le scan antimalware et les garanties de conservation WORM ne sont pas implémentés.
+
 ## Vérifications
 
 ```sh
@@ -34,11 +53,15 @@ npm test
 npm run typecheck
 npm run build
 npm run test:integration
+# Après initialisation du stockage local :
+npm run test:storage
 ```
 
 Les tests d’intégration nécessitent une **base de test jetable**, migrée et initialisée, ainsi que le build de l’API. Ils utilisent les fixtures connues : isolation tenant/site, droits des lecteurs et déclarants, historique atomique et non modifiable par l’application, absence de fuite entre connexions du pool. La suite HTTP démarre une API de test et un serveur de clés local pour vérifier les JWT, les adhésions, les contrôles de sites, les champs inconnus et les conflits de version. Elle parcourt également déclaration, analyse, action corrective, clôture indépendante et réouverture automatique. Les écritures SQL sont annulées; les tests HTTP créent des signalements et actions de test qui restent dans cette base jetable. Ne pas les exécuter sur une base d’exploitation.
 
 Après une première installation réussie, vérifier les versions résolues puis committer le `package-lock.json`; il n’a pas pu être généré ici. Le dépôt utilise des plages de versions à cette étape.
+
+Les tests de stockage utilisent une API à jetons de test et un MinIO local réel. Ils couvrent envoi/finalisation/téléchargement, confidentialité des brouillons et tenants, rejeu d’un formulaire d’envoi, blocage des tailles ou types incorrects, annulation et publication d’une version avec manifeste. Ils créent des fichiers et données dans les services de test jetables. La CI inclut maintenant leur démarrage et leur initialisation; son exécution reste à vérifier.
 
 ## Connexion SSO
 
@@ -54,4 +77,4 @@ Le module Documents permet de rédiger des documents texte, de soumettre une ver
 
 Le module **Incidents & NC** traite incidents, presque-accidents, non-conformités et réclamations : déclaration par le personnel autorisé au site, correction immédiate, responsables nommés, analyse des « 5 pourquoi », cause racine, coût de non-qualité avec devise, actions correctives du plan unique et vérification indépendante d’efficacité. Toutes les actions liées doivent être closes avant la vérification; rouvrir une action annule automatiquement la clôture ou la vérification en cours du signalement. Un lecteur suit uniquement ses propres signalements et leurs actions; les managers traitent les signalements de leurs sites. Ces déclarations ne sont pas le canal confidentiel/anonyme d’anticorruption.
 
-Les fichiers binaires et pièces jointes S3, signatures par prestataire, diffusion nominative/relances, diagramme Ishikawa, audits, cartographie des risques, registre réglementaire réel, alertes anticorruption, sources de veille, IA, notifications, export intégral et mobile hors connexion restent à compléter dans l’ordre du plan. L’interface est française; l’internationalisation anglais/français et la recette responsive restent à compléter. Aucun hébergement régional ni certification n’est fourni par cette étape.
+Les pièces jointes sont maintenant reliées aux documents et signalements, y compris les photos via le sélecteur mobile. La recette avec stockage, le scan antimalware, la rétention/purge, les signatures par prestataire, diffusion nominative/relances, diagramme Ishikawa, audits, cartographie des risques, registre réglementaire réel, alertes anticorruption, sources de veille, IA, notifications, export intégral et mobile hors connexion restent à compléter dans l’ordre du plan. L’interface est française; l’internationalisation anglais/français et la recette responsive restent à compléter. Aucun hébergement régional ni certification n’est fourni par cette étape.

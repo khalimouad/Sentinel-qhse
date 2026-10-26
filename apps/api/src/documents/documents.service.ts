@@ -10,14 +10,14 @@ const documentColumns = `d.id,d.code,d.title,d.site_id AS "siteId",s.name AS "si
 const visibleLatest = `JOIN LATERAL (SELECT status FROM app.document_versions WHERE document_id=d.id ORDER BY number DESC LIMIT 1) v ON true`;
 const versionColumns = `v.id,v.number,v.content,v.content_sha256 AS "contentSha256",v.status,v.author_id AS "authorId",
   v.reviewer_id AS "reviewerId",v.approver_id AS "approverId",v.revision,v.reviewed_at AS "reviewedAt",v.approved_at AS "approvedAt",
-  v.decision_note AS "decisionNote",v.created_at AS "createdAt",EXISTS(SELECT 1 FROM app.document_receipts r WHERE r.version_id=v.id AND r.user_id=identity.actor_id()) AS acknowledged`;
+  v.decision_note AS "decisionNote",v.created_at AS "createdAt",v.attachments_sha256 AS "attachmentsSha256",EXISTS(SELECT 1 FROM app.document_receipts r WHERE r.version_id=v.id AND r.user_id=identity.actor_id()) AS acknowledged`;
 
 @Injectable()
 export class DocumentsService {
   constructor(private readonly database: Database) {}
   private write(session: TenantSession) { if (!session.canWrite) throw new ForbiddenException('Accès en lecture seule.'); }
   private async lock(session: TenantSession,id: string) {
-    await session.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[id]);
+    await session.db.query('SELECT pg_advisory_xact_lock(hashtextextended($1::uuid::text,0))',[id]);
     const result=await session.db.query<{ id: string; siteId: string; lastVersion: number }>(`SELECT id,site_id AS "siteId",last_version AS "lastVersion"
       FROM app.documents WHERE tenant_id=$1 AND id=$2`,[session.tenant.id,id]);
     if (!result.rows[0]) throw new NotFoundException('Document introuvable.');
@@ -102,6 +102,10 @@ export class DocumentsService {
       try { status=decideDocument(version,input.command,session.actor.id,session.canWrite); }
       catch (error) { if (error instanceof DocumentWorkflowError) throw new HttpException(error.message,error.status); throw error; }
       if (input.command==='reject' && !input.note?.trim()) throw new BadRequestException('Un motif est obligatoire pour retourner un document.');
+      if(input.command==='submit'){
+        const pending=await session.db.query("SELECT id FROM app.attachments WHERE tenant_id=$1 AND document_version_id=$2 AND status='pending' LIMIT 1",[session.tenant.id,versionId]);
+        if(pending.rowCount)throw new ConflictException('Terminez ou annulez les envois de fichiers avant de soumettre cette version.');
+      }
       if (status==='published') await session.db.query("UPDATE app.document_versions SET status='archived',revision=revision+1 WHERE document_id=$1 AND status='published'",[id]);
       await session.db.query(`UPDATE app.document_versions SET status=$2,revision=revision+1,decision_note=$3,
         reviewed_at=CASE WHEN $2='pending_approval' THEN clock_timestamp() ELSE reviewed_at END,

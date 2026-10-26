@@ -20,3 +20,11 @@ test('unencrypted external JWKS endpoints are rejected', () => {
   assert.throws(() => readConfig({ ...local, OIDC_JWKS_URI: 'file:///tmp/jwks.json' }), /HTTPS/);
   assert.equal(readConfig({ ...local, OIDC_JWKS_URI: 'http://127.0.0.1:9000/jwks' }).devAuth, true);
 });
+test('file storage stays optional and validates region and endpoint without exposing credentials',()=>{
+  assert.equal(readConfig(local).storage,null);
+  assert.throws(()=>readConfig({...local,S3_BUCKET:'sentinelle-files'}),/S3_REGION/);
+  assert.throws(()=>readConfig({...local,S3_BUCKET:'sentinelle-files',S3_REGION:'us-east-1',S3_ENDPOINT:'http://example.org'}),/HTTPS/);
+  assert.throws(()=>readConfig({...local,S3_BUCKET:'sentinelle-files',S3_REGION:'us-east-1',S3_ENDPOINT:'https://user:password@example.org'}),/credentials/);
+  const config=readConfig({...local,S3_BUCKET:'sentinelle-files',S3_REGION:'us-east-1',S3_ENDPOINT:'http://127.0.0.1:9000',S3_FORCE_PATH_STYLE:'true'});
+  assert.equal(config.storage.forcePathStyle,true);assert.equal(config.storage.bucket,'sentinelle-files');
+});
