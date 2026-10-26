@@ -3,9 +3,9 @@ import { randomUUID } from 'node:crypto';
 import type { AuditFinding, QualityAudit, QualityAuditDetail, QualityAuditList, ReportEvent } from '@sentinelle/contracts';
 import type { Principal } from '../auth.js';
 import { Database, type TenantSession } from '../database.js';
-import { AuditFindingDto, AuditQuery, CreateAuditDto, DecideAuditDto, SaveChecklistDto } from './dto.js';
+import { AuditFindingDto, AuditQuery, CreateAuditDto, DecideAuditDto, SaveChecklistDto, UpdateAuditPlanDto } from './dto.js';
 const columns=`a.id,a.title,a.standard,a.scope,a.site_id AS "siteId",s.name AS "siteName",a.starts_on::text AS "startsOn",a.ends_on::text AS "endsOn",
-  a.lead_id AS "leadId",a.auditee_id AS "auditeeId",a.created_by AS "createdBy",a.status,a.checklist,a.conclusion,a.revision,
+  a.lead_id AS "leadId",a.auditee_id AS "auditeeId",a.created_by AS "createdBy",a.status,a.checklist,a.conclusion,a.replan_reason AS "replanReason",a.revision,
   a.report_snapshot AS "reportSnapshot",a.completed_at AS "completedAt",a.created_at AS "createdAt",a.updated_at AS "updatedAt"`;
 const joins='FROM app.audits a JOIN app.sites s ON s.id=a.site_id';
 @Injectable()
@@ -55,6 +55,22 @@ export class AuditsService {
       return this.detailIn(session,id);
     });
   }
+  replan(principal:Principal,tenant:string|undefined,id:string,input:UpdateAuditPlanDto) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      const {audit}=await this.lock(session,id,input.revision,false);
+      if(audit.status!=='planned')throw new ConflictException('La planification est figée dès le démarrage de l’audit.');
+      if(input.endsOn<input.startsOn)throw new BadRequestException('La fin de l’audit doit suivre son début.');
+      const leadId=input.leadId.toLowerCase(),auditeeId=input.auditeeId.toLowerCase();
+      if(leadId===auditeeId)throw new BadRequestException('Le responsable d’audit et le responsable audité doivent être différents.');
+      const eligible=await session.db.query('SELECT identity.can_review_site($1,$2,$3) AND identity.can_review_site($1,$2,$4) AS allowed',[session.tenant.id,audit.siteId,leadId,auditeeId]);
+      if(!eligible.rows[0].allowed)throw new BadRequestException('Les participants doivent être responsables habilités sur ce site.');
+      if(input.title===audit.title&&input.standard===audit.standard&&input.scope===audit.scope&&input.startsOn===audit.startsOn&&input.endsOn===audit.endsOn&&leadId===audit.leadId&&auditeeId===audit.auditeeId)
+        throw new BadRequestException('Modifiez au moins un élément du plan avant d’enregistrer.');
+      await session.db.query(`UPDATE app.audits SET title=$3,standard=$4,scope=$5,starts_on=$6,ends_on=$7,lead_id=$8,auditee_id=$9,replan_reason=$10
+        WHERE tenant_id=$1 AND id=$2`,[session.tenant.id,id,input.title,input.standard,input.scope,input.startsOn,input.endsOn,leadId,auditeeId,input.reason]);
+      return this.detailIn(session,id);
+    });
+  }
   checklist(principal:Principal,tenant:string|undefined,id:string,input:SaveChecklistDto) {
     return this.database.withTenant(principal,tenant,async session=>{
       const {audit,findings}=await this.lock(session,id,input.revision);
@@ -76,6 +92,10 @@ export class AuditsService {
       const status=input.command==='start'?'in_progress':input.command==='complete'?'completed':'cancelled';
       if((input.command==='complete'&&audit.status!=='in_progress')||(input.command!=='complete'&&audit.status!=='planned'))throw new ConflictException('Le statut ne permet plus cette opération.');
       if(input.command==='start'&&!audit.checklist.length)throw new BadRequestException('Ajoutez au moins une question au préalable.');
+      if(input.command==='start'){
+        const eligible=await session.db.query('SELECT identity.can_review_site($1,$2,$3) AND identity.can_review_site($1,$2,$4) AS allowed',[session.tenant.id,audit.siteId,audit.leadId,audit.auditeeId]);
+        if(!eligible.rows[0].allowed)throw new ConflictException('Un participant n’est plus habilité. Replanifiez avant de démarrer.');
+      }
       const conclusion=input.conclusion?.trim()||'';
       if(input.command!=='start'&&!conclusion)throw new BadRequestException('Une conclusion ou un motif d’annulation est obligatoire.');
       if(input.command==='complete'&&audit.checklist.some(item=>item.result==='pending'||!item.evidence.trim()||(item.result==='nonconform'&&!findings.some(f=>f.itemId===item.id))))

@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayUnique, IsArray, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import type { AuditResult, AuditStatus, ReportCurrency, ReportSeverity } from '@sentinelle/contracts';
 const trim=({value}:{value:unknown})=>typeof value==='string'?value.trim():value;
 export class CreateAuditDto {
@@ -12,6 +12,10 @@ export class CreateAuditDto {
   @ApiProperty({format:'uuid'}) @IsUUID() auditeeId!:string;
   @ApiProperty({format:'date'}) @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({strict:true}) startsOn!:string;
   @ApiProperty({format:'date'}) @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({strict:true}) endsOn!:string;
+}
+export class UpdateAuditPlanDto extends OmitType(CreateAuditDto,['siteId'] as const) {
+  @ApiProperty() @IsInt() @Min(1) revision!:number;
+  @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(2000) reason!:string;
 }
 export class ChecklistItemDto {
   @ApiProperty({format:'uuid'}) @Transform(({value}:{value:unknown})=>typeof value==='string'?value.toLowerCase():value) @IsUUID() id!:string;

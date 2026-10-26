@@ -81,9 +81,17 @@ export interface AuditChecklistItem { id:string; clause:string; question:string;
 export interface QualityAudit {
   id:string; title:string; standard:string; scope:string; siteId:string; siteName:string;
   startsOn:string; endsOn:string; leadId:string; auditeeId:string; createdBy:string; status:AuditStatus;
-  checklist:AuditChecklistItem[]; conclusion:string; revision:number; completedAt:string|null;
-  reportSnapshot:Record<string,unknown>|null; createdAt:string; updatedAt:string;
+  checklist:AuditChecklistItem[]; conclusion:string; replanReason:string; revision:number; completedAt:string|null;
+  reportSnapshot:AuditReportSnapshot|null; createdAt:string; updatedAt:string;
 }
 export interface AuditFinding { id:string; itemId:string; reportId:string; reportStatus:ReportStatus; createdBy:string; createdAt:string }
 export interface QualityAuditDetail { audit:QualityAudit; findings:AuditFinding[] }
 export interface QualityAuditList { items:QualityAudit[]; total:number }
+
+export interface AuditReportSnapshot {
+  schemaVersion?:number; auditId?:string; tenantName?:string; siteName?:string;
+  title:string; standard:string; scope:string; siteId:string; startsOn:string; endsOn:string;
+  leadId:string; auditeeId:string; leadName?:string; auditeeName?:string;
+  completedBy:string; completedByName?:string; completedAt:string; conclusion:string;
+  checklist:AuditChecklistItem[]; findings:{itemId:string;reportId:string}[];
+}

@@ -60,6 +60,14 @@ Seul le responsable d’audit désigné réalise la checklist et finalise; les m
 
 La compilation, les migrations et la recette de ce nouveau parcours restent à effectuer. L’installation des dépendances a de nouveau échoué sur une connexion réseau refusée par l’environnement. Aucun nouveau résultat de test n’est revendiqué pour cet incrément. Programme annuel, replanification, qualification et équipe d’auditeurs, modèles de checklist, pièces jointes d’audit, PDF et diffusion restent à compléter.
 
+### Suite audits : révision du plan et rapport imprimable
+
+La migration `006_audit_replanning.sql` permet une révision motivée avant démarrage : titre, référentiel, périmètre, dates et responsables. La révision attendue et le verrou de ligne protègent les modifications concurrentes. Les managers/admins du site peuvent replanifier; le site, la checklist et le cycle de réalisation restent inchangés pendant cette opération. L’historique immuable distingue les replanifications et expose le motif et les valeurs avant/après. Une fois démarré, le plan est figé. Les participants sont revérifiés au démarrage.
+
+Le rapport finalisé dispose maintenant d’une présentation imprimable via le navigateur, avec enregistrement PDF depuis son dialogue d’impression. Les nouvelles finalisations capturent les noms de l’organisation, du site et des personnes; les anciens snapshots restent inchangés et affichent leurs identifiants historiques. La vue imprimée ne mélange pas le contenu figé et les statuts actuels des non-conformités. Génération PDF automatique, programme annuel, qualification et équipe d’auditeurs, modèles, fichiers et diffusion restent à développer.
+
+Les contrôles de syntaxe Node des fichiers compatibles et la vérification des espaces Git ont été effectués. Aucun test supplémentaire n’a été ajouté ou exécuté. La compilation, l’application des migrations et la recette navigateur/impression demeurent ouvertes; les dépendances de compilation ne sont pas installées dans cet environnement.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
