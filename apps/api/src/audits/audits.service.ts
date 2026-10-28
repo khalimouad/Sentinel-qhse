@@ -3,12 +3,13 @@ import { randomUUID } from 'node:crypto';
 import type { AuditFinding, AuditProgramme, AuditTemplate, QualityAudit, QualityAuditDetail, QualityAuditList, ReportEvent } from '@sentinelle/contracts';
 import type { Principal } from '../auth.js';
 import { Database, type TenantSession } from '../database.js';
+import { qualifiedForAudit } from './qualifications.service.js';
 import { ApplyAuditTemplateDto } from './templates.dto.js';
 import { templateColumns, templateUses } from './templates.service.js';
 import { AuditFindingDto, AuditProgrammeQuery, AuditQuery, CreateAuditDto, DecideAuditDto, SaveChecklistDto, UpdateAuditPlanDto } from './dto.js';
 const columns=`a.id,a.title,a.standard,a.scope,a.site_id AS "siteId",s.name AS "siteName",a.starts_on::text AS "startsOn",a.ends_on::text AS "endsOn",
   a.lead_id AS "leadId",a.auditee_id AS "auditeeId",a.created_by AS "createdBy",a.status,a.checklist,a.conclusion,a.replan_reason AS "replanReason",a.revision,
-  a.report_snapshot AS "reportSnapshot",a.completed_at AS "completedAt",a.created_at AS "createdAt",a.updated_at AS "updatedAt"`;
+  a.lead_qualification_id AS "leadQualificationId",a.lead_qualification_snapshot AS "leadQualificationSnapshot",a.report_snapshot AS "reportSnapshot",a.completed_at AS "completedAt",a.created_at AS "createdAt",a.updated_at AS "updatedAt"`;
 const joins='FROM app.audits a JOIN app.sites s ON s.id=a.site_id';
 @Injectable()
 export class AuditsService {
@@ -22,7 +23,7 @@ export class AuditsService {
     if(!rows[0])throw new NotFoundException('Audit introuvable.');
     const findings=await session.db.query<AuditFinding>(`SELECT f.id,f.item_id AS "itemId",f.report_id AS "reportId",f.created_by AS "createdBy",f.created_at AS "createdAt",r.status AS "reportStatus"
       FROM app.audit_findings f JOIN app.reports r ON r.id=f.report_id AND r.tenant_id=f.tenant_id WHERE f.tenant_id=$1 AND f.audit_id=$2 ORDER BY f.created_at,f.id`,[session.tenant.id,id]);
-    return {audit:rows[0],findings:findings.rows,templateUses:await templateUses(session,id)};
+    return {audit:rows[0],findings:findings.rows,templateUses:await templateUses(session,id),leadQualificationReady:rows[0].status==='planned'?await qualifiedForAudit(session,rows[0]):false};
   }
   private async lock(session:TenantSession,id:string,revision:number,leadOnly=true) {
     this.access(session);
@@ -132,6 +133,8 @@ export class AuditsService {
       if((input.command==='complete'&&audit.status!=='in_progress')||(input.command!=='complete'&&audit.status!=='planned'))throw new ConflictException('Le statut ne permet plus cette opération.');
       if(input.command==='start'&&!audit.checklist.length)throw new BadRequestException('Ajoutez au moins une question au préalable.');
       if(input.command==='start'){
+        await session.db.query('SELECT app.lock_auditor_qualification($1,$2,$3,$4)',[session.tenant.id,audit.siteId,audit.leadId,audit.standard]);
+        if(!await qualifiedForAudit(session,audit))throw new ConflictException('Une qualification non révoquée, valide aujourd’hui et couvrant toute la période de l’audit, est requise pour le responsable désigné.');
         const eligible=await session.db.query('SELECT identity.can_review_site($1,$2,$3) AND identity.can_review_site($1,$2,$4) AS allowed',[session.tenant.id,audit.siteId,audit.leadId,audit.auditeeId]);
         if(!eligible.rows[0].allowed)throw new ConflictException('Un participant n’est plus habilité. Replanifiez avant de démarrer.');
       }

@@ -25,6 +25,13 @@ export default function AuditReport({snapshot,auditId,onClose}:{snapshot:AuditRe
         <dt>Finalisé le</dt><dd>{new Date(snapshot.completedAt).toLocaleString('fr-FR')} · {snapshot.completedAt}</dd>
       </dl>
       {!snapshot.schemaVersion&&<p className="audit-report-legacy">Ce rapport historique conserve les identifiants enregistrés à sa finalisation. Les noms actuels de l’annuaire ne sont pas substitués.</p>}
+      <section><h2>Qualification contrôlée au démarrage</h2>{snapshot.leadQualification?<>
+        <p>Référentiel : {snapshot.leadQualification.standard} · Validité enregistrée : {snapshot.leadQualification.validFrom} → {snapshot.leadQualification.validUntil}</p>
+        <p>Auditeur : {snapshot.leadQualification.auditorName||snapshot.leadQualification.userId}<br/>Évaluateur : {snapshot.leadQualification.assessorName||snapshot.leadQualification.assessedBy}</p>
+        <p className="audit-report-text">Justificatif : {snapshot.leadQualification.evidenceReference}<br/>{snapshot.leadQualification.assessment}</p>
+        <p className="audit-report-id">Qualification : {snapshot.leadQualification.id}<br/>Contrôlée le : {snapshot.leadQualification.checkedAt}</p>
+        <p>Preuve historique au démarrage ; une expiration ou révocation ultérieure ne réécrit pas cette preuve.</p>
+      </>:<p>Ce rapport ne contient pas de preuve de qualification enregistrée au démarrage.</p>}</section>
       <section><h2>Périmètre et objectifs</h2><p className="audit-report-text">{snapshot.scope}</p></section>
       <section><h2>Résultats et preuves</h2>{snapshot.checklist.map((item,index)=>{
         const finding=snapshot.findings.find(finding=>finding.itemId===item.id);

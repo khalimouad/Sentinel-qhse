@@ -5,6 +5,7 @@ import type { AuditChecklistItem,QualityAudit,QualityAuditDetail,QualityAuditLis
 import AuditReport from './AuditReport';
 import AuditTemplatesPanel from './AuditTemplatesPanel';
 import AuditProgrammePanel from './AuditProgrammePanel';
+import AuditorQualificationsPanel from './AuditorQualificationsPanel';
 import { api } from '../lib/use-workspace';
 const states={planned:'Planifié',in_progress:'En cours',completed:'Rapport finalisé',cancelled:'Annulé'};
 const reportStates={reported:'Déclarée',in_analysis:'En analyse',action_plan:'Plan d’actions',effectiveness_review:'Vérification d’efficacité',closed:'Clôturée'};
@@ -25,7 +26,10 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   const [templateBusy,setTemplateBusy]=useState(false);
   const [templateDraft,setTemplateDraft]=useState(false);
   const [templatesOpen,setTemplatesOpen]=useState(false);
-  const busy=requestBusy||templateBusy;
+  const [qualificationBusy,setQualificationBusy]=useState(false);
+  const [qualificationDraft,setQualificationDraft]=useState(false);
+  const [qualificationsOpen,setQualificationsOpen]=useState(false);
+  const busy=requestBusy||templateBusy||qualificationBusy;
   const [error,setError]=useState('');
   const [creating,setCreating]=useState(false);
   const [editingPlan,setEditingPlan]=useState(false);
@@ -40,9 +44,9 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   const audit=detail?.audit;
   const findings=detail?.findings||[];
   const templateUses=detail?.templateUses||[];
-  const dirty=editingPlan||templateDraft||(!!audit&&JSON.stringify(checklist)!==JSON.stringify(audit.checklist));
+  const dirty=editingPlan||templateDraft||qualificationDraft||(!!audit&&JSON.stringify(checklist)!==JSON.stringify(audit.checklist));
   const lead=!!audit&&audit.leadId===context.actor.id;
-  const editable=!editingPlan&&!templateDraft&&lead&&['planned','in_progress'].includes(audit?.status||'');
+  const editable=!editingPlan&&!templateDraft&&!qualificationDraft&&lead&&['planned','in_progress'].includes(audit?.status||'');
   const name=(id:string)=>context.members.find(person=>person.id===id)?.name||'Ancien membre';
   const load=useCallback(async(signal?:AbortSignal)=>{
     const request=++listGeneration.current;
@@ -96,6 +100,14 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
     try{const result=await api<ReportEvent[]>(`audits/${audit.id}/history`,tenant);if(alive.current&&request===generation.current)setHistory(result);}
     catch(e){if(alive.current&&request===generation.current)setError(message(e));}
   }
+  async function refreshQualification(){
+    if(!audit)return;
+    const request=generation.current;
+    const saved=await api<QualityAuditDetail>(`audits/${audit.id}`,tenant);
+    if(!alive.current||request!==generation.current)return;
+    if(saved.audit.revision!==audit.revision){setError('L’audit a changé. Actualisez son détail avant de poursuivre.');return;}
+    setDetail(current=>current?.audit.id===saved.audit.id?{...current,leadQualificationReady:saved.leadQualificationReady}:current);
+  }
   function download(){
     if(!audit?.reportSnapshot)return;
     const url=URL.createObjectURL(new Blob([JSON.stringify(audit.reportSnapshot,null,2)],{type:'application/json'}));
@@ -103,12 +115,13 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   }
   if(!context.canWrite)return <div className="module-page"><h1>Audits</h1><p className="report-privacy">La préparation et la réalisation des audits sont réservées aux responsables habilités sur les sites concernés.</p></div>;
   return <div className="module-page documents-page audits-page">
-    <div className="module-header"><div><div className="eyebrow">AMÉLIORATION CONTINUE</div><h1>Audits</h1><p>Planifier, documenter les preuves et suivre les écarts.</p></div><button className="button" disabled={busy} onClick={()=>{if(!dirty||window.confirm('Abandonner les modifications non enregistrées ?')){generation.current++;setCreating(true);setDetail(null);setHistory(null);setEditingPlan(false);setTemplatesOpen(false);setTemplateDraft(false);setError('');}}}><Plus size={14}/>Planifier un audit</button><button type="button" className="button button-outline" disabled={busy} onClick={()=>setTemplatesOpen(true)}>Modèles de checklist</button></div>
+    <div className="module-header"><div><div className="eyebrow">AMÉLIORATION CONTINUE</div><h1>Audits</h1><p>Planifier, documenter les preuves et suivre les écarts.</p></div><button className="button" disabled={busy} onClick={()=>{if(!dirty||window.confirm('Abandonner les modifications non enregistrées ?')){generation.current++;setCreating(true);setDetail(null);setHistory(null);setEditingPlan(false);setTemplatesOpen(false);setTemplateDraft(false);setQualificationsOpen(false);setQualificationDraft(false);setError('');}}}><Plus size={14}/>Planifier un audit</button><button type="button" className="button button-outline" disabled={busy||qualificationDraft} onClick={()=>setTemplatesOpen(true)}>Modèles de checklist</button><button type="button" className="button button-outline" disabled={busy||templateDraft||editingPlan} onClick={()=>setQualificationsOpen(true)}>Qualification des auditeurs</button></div>
     <div className="audit-period-controls"><label className="field-label">Année<select className="field-input" value={year??''} disabled={busy} onChange={e=>{setYear(e.target.value?Number(e.target.value):null);setMonth(null);setPage(0);}}><option value="">Toute période</option>{Array.from({length:101},(_,index)=>2000+index).map(value=><option key={value} value={value}>{value}</option>)}</select></label>{month&&<p className="attachments-hint">Liste filtrée sur le mois {month}. <button type="button" disabled={busy} onClick={()=>{setMonth(null);setPage(0);}}>Effacer le mois</button></p>}<button type="button" className="button button-outline" disabled={busy} onClick={()=>{setProgrammeReload(value=>value+1);void load().catch(e=>setError(message(e)));}}>Actualiser le planning</button></div>
     {year&&<AuditProgrammePanel tenant={tenant} year={year} siteId={context.sites.find(site=>site.name===siteName)?.id} status={status} search={search} selectedMonth={month} disabled={busy} reload={programmeReload} onMonth={value=>{setMonth(value);setPage(0);}}/>}
     {error&&<div className="document-error" role="alert">{error} <button type="button" onClick={()=>{if(audit)void open(audit.id);else void load().catch(e=>setError(message(e)));}}>Actualiser</button></div>}
     {creating&&<AuditForm context={context} siteName={siteName} busy={busy} onCancel={()=>setCreating(false)} onSave={values=>mutate('audits',values)}/>}
-    {templatesOpen&&<AuditTemplatesPanel key={`${audit?.id||'library'}.${audit?.standard||''}`} context={context} siteName={siteName} audit={audit} disabled={busy||editingPlan} allowApply={!dirty} onBusyChange={setTemplateBusy} onDraftChange={setTemplateDraft} onClose={()=>setTemplatesOpen(false)} onApply={(templateId,replace)=>audit?mutate(`audits/${audit.id}/template`,{revision:audit.revision,templateId,replace}):Promise.resolve()}/>}
+    {templatesOpen&&<AuditTemplatesPanel key={`${audit?.id||'library'}.${audit?.standard||''}`} context={context} siteName={siteName} audit={audit} disabled={busy||editingPlan||qualificationDraft} allowApply={!dirty} onBusyChange={setTemplateBusy} onDraftChange={setTemplateDraft} onClose={()=>setTemplatesOpen(false)} onApply={(templateId,replace)=>audit?mutate(`audits/${audit.id}/template`,{revision:audit.revision,templateId,replace}):Promise.resolve()}/>}
+    {qualificationsOpen&&<AuditorQualificationsPanel key={`${audit?.id||'registry'}.${audit?.standard||''}`} context={context} siteName={siteName} audit={audit} disabled={busy||editingPlan||templateDraft} onBusyChange={setQualificationBusy} onDraftChange={setQualificationDraft} onClose={()=>setQualificationsOpen(false)} onChanged={refreshQualification}/>}
     <div className="documents-layout">
       <section className="panel documents-list" aria-label="Liste des audits">
         <label className="documents-toolbar"><Search size={14}/><input aria-label="Rechercher un audit" placeholder="Titre ou référentiel…" value={search} disabled={busy} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label>
@@ -121,6 +134,8 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
           <div className="document-title"><div><span className="document-code">{audit.standard}</span><h2>{audit.title}</h2></div><span className={`document-status status-${audit.status}`}>{states[audit.status]}</span></div>
           <div className="report-facts"><span>Site<b>{audit.siteName}</b></span><span>Période<b>{audit.startsOn} → {audit.endsOn}</b></span><span>Responsable d’audit<b>{name(audit.leadId)}</b></span><span>Responsable audité<b>{name(audit.auditeeId)}</b></span></div>
           {editingPlan&&<AuditForm key={`${audit.id}.${audit.revision}`} context={context} siteName={siteName} initialAudit={audit} busy={busy} onCancel={()=>setEditingPlan(false)} onSave={values=>mutate(`audits/${audit.id}/plan`,{...values,revision:audit.revision},'PATCH')}/>}
+          {audit.status==='planned'&&<p className={detail?.leadQualificationReady?'report-privacy':'document-error'}>{detail?.leadQualificationReady?'Qualification du responsable valide aujourd’hui et couvrant la période planifiée.':'Le démarrage exige une qualification du responsable, non révoquée, valide aujourd’hui et couvrant toute la période planifiée, pour ce site et ce référentiel exacts.'} <button type="button" disabled={busy||templateDraft||editingPlan} onClick={()=>setQualificationsOpen(true)}>Consulter le registre</button></p>}
+          {audit.status!=='planned'&&audit.leadQualificationSnapshot&&<p className="attachments-hint">Qualification contrôlée au démarrage : {audit.leadQualificationSnapshot.evidenceReference} · Validité enregistrée jusqu’au {audit.leadQualificationSnapshot.validUntil}.</p>}
           <p className="audit-scope">{audit.scope}</p>
           <p className="attachments-hint">Les questions et clauses sont figées au démarrage. Chaque résultat nécessite une preuve ou une justification. La finalisation du rapport ne clôture pas les actions correctives.</p>
           {!lead&&['planned','in_progress'].includes(audit.status)&&<p className="report-privacy">La checklist et les décisions de réalisation sont réservées à {name(audit.leadId)}.</p>}
@@ -150,7 +165,7 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
           </div>}
           {audit.conclusion&&<div className="document-decision-note"><b>{audit.status==='cancelled'?'Motif d’annulation':'Conclusion'}</b><p>{audit.conclusion}</p></div>}
           <div className="document-commands">
-            {lead&&audit.status==='planned'&&<button type="button" className="button" disabled={busy||dirty||!audit.checklist.length} onClick={()=>void decide('start')}>Démarrer l’audit</button>}
+            {lead&&audit.status==='planned'&&<button type="button" className="button" disabled={busy||dirty||!audit.checklist.length||!detail?.leadQualificationReady} onClick={()=>void decide('start')}>Démarrer l’audit</button>}
             {lead&&audit.status==='in_progress'&&<button type="button" className="button" disabled={busy||dirty} onClick={()=>void decide('complete')}>Finaliser le rapport</button>}
             {audit.status==='planned'&&<button type="button" className="button button-outline" disabled={busy||dirty} onClick={()=>setEditingPlan(true)}>Modifier la planification</button>}
             {audit.status==='planned'&&<button type="button" className="button button-outline" disabled={busy||dirty} onClick={()=>void decide('cancel')}>Annuler l’audit</button>}

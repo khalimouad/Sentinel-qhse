@@ -84,6 +84,14 @@ L’API `/audits/programme` calcule les compteurs sur tous les audits autorisés
 
 Ce planning ne remplace pas l’approbation d’un programme annuel. Objectifs/budgets annuels, approbation/révision de programme, qualification et équipe d’auditeurs restent à développer. Les contrôles de syntaxe des services/contrats compatibles avec Node et des espaces Git ont passé; aucun test n’a été ajouté ou exécuté. Compilation, requêtes PostgreSQL et navigateur demeurent à recetter.
 
+### Suite audits : qualification du responsable d’audit
+
+La migration `008_auditor_qualifications.sql` ajoute un registre par site/personne/référentiel, avec dates de validité, justificatif référencé, évaluation nominative et révocation motivée. Les managers/admins habilités évaluent une autre personne habilitée; aucune auto-attribution n’est permise. Évaluations et révocations sont conservées sans droit de modification/suppression pour le rôle applicatif. Le registre dispose d’un écran de saisie, consultation, filtres et pagination.
+
+Les nouveaux démarrages exigent une qualification non révoquée couvrant la période planifiée et valide à la date UTC de démarrage. La vérification est dans l’API et la base. Un verrou partagé par périmètre qualification/démarrage sérialise attribution, révocation et démarrage. La preuve choisie et ses noms sont figés au démarrage puis incorporés au rapport final. Les audits déjà démarrés avant migration n’obtiennent pas de preuve rétroactive; une révocation/expiration ultérieure n’altère pas la preuve historique et ne suspend pas automatiquement une mission en cours.
+
+Aucune qualification n’est préchargée dans les fixtures. Deux personnes habilitées distinctes sont nécessaires pour l’attribution. Pièces justificatives binaires, contrôle d’authenticité/accréditation, équipe d’auditeurs, suspension/remplacement en cours de mission et relances restent à développer. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent. Aucun test ajouté ou exécuté; compilation, migration et recette PostgreSQL/navigateur restent ouvertes.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).

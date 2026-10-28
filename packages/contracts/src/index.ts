@@ -81,15 +81,16 @@ export interface AuditChecklistItem { id:string; clause:string; question:string;
 export interface QualityAudit {
   id:string; title:string; standard:string; scope:string; siteId:string; siteName:string;
   startsOn:string; endsOn:string; leadId:string; auditeeId:string; createdBy:string; status:AuditStatus;
+  leadQualificationId:string|null; leadQualificationSnapshot:AuditorQualificationProof|null;
   checklist:AuditChecklistItem[]; conclusion:string; replanReason:string; revision:number; completedAt:string|null;
   reportSnapshot:AuditReportSnapshot|null; createdAt:string; updatedAt:string;
 }
 export interface AuditFinding { id:string; itemId:string; reportId:string; reportStatus:ReportStatus; createdBy:string; createdAt:string }
-export interface QualityAuditDetail { audit:QualityAudit; findings:AuditFinding[]; templateUses:AuditTemplateUse[] }
+export interface QualityAuditDetail { audit:QualityAudit; findings:AuditFinding[]; templateUses:AuditTemplateUse[]; leadQualificationReady:boolean }
 export interface QualityAuditList { items:QualityAudit[]; total:number }
 
 export interface AuditReportSnapshot {
-  schemaVersion?:number; templateSources?:AuditTemplateSource[]; auditId?:string; tenantName?:string; siteName?:string;
+  schemaVersion?:number; leadQualification?:AuditorQualificationProof|null; templateSources?:AuditTemplateSource[]; auditId?:string; tenantName?:string; siteName?:string;
   title:string; standard:string; scope:string; siteId:string; startsOn:string; endsOn:string;
   leadId:string; auditeeId:string; leadName?:string; auditeeName?:string;
   completedBy:string; completedByName?:string; completedAt:string; conclusion:string;
@@ -113,4 +114,16 @@ export interface AuditProgrammeCounts {
 export interface AuditProgramme {
   year:number; asOf:string; counts:AuditProgrammeCounts;
   months:({month:number}&AuditProgrammeCounts)[];
+}
+
+export interface AuditorQualification {
+  id:string; siteId:string; userId:string; standard:string; validFrom:string; validUntil:string;
+  evidenceReference:string; assessment:string; assessedBy:string; createdAt:string;
+  status:'valid'|'future'|'expired'|'revoked'; revocationReason:string|null; revokedBy:string|null; revokedAt:string|null;
+}
+export interface AuditorQualificationList { items:AuditorQualification[]; total:number }
+export interface AuditorQualificationProof {
+  id:string; siteId:string; userId:string; standard:string; validFrom:string; validUntil:string;
+  evidenceReference:string; assessment:string; assessedBy:string; assessorName?:string; auditorName?:string;
+  issuedAt:string; checkedAt:string;
 }

@@ -15,6 +15,8 @@ import { AuditsController } from './audits/audits.controller.js';
 import { AuditsService } from './audits/audits.service.js';
 import { AuditTemplatesController } from './audits/templates.controller.js';
 import { AuditTemplatesService } from './audits/templates.service.js';
+import { AuditorQualificationsController } from './audits/qualifications.controller.js';
+import { AuditorQualificationsService } from './audits/qualifications.service.js';
 import { ObjectStorage } from './attachments/storage.js';
 
 @Controller('health')
@@ -23,7 +25,7 @@ class HealthController {
   @Get() healthy() { return this.database.healthy(); }
 }
 @Module({
-  controllers: [HealthController,WorkspaceController,ActionsController,DocumentsController,ReportsController,AttachmentsController,AuditsController,AuditTemplatesController],
-  providers: [{ provide: CONFIG, useFactory: () => readConfig() },Database,IdentityGuard,ActionsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService],
+  controllers: [HealthController,WorkspaceController,ActionsController,DocumentsController,ReportsController,AttachmentsController,AuditsController,AuditTemplatesController,AuditorQualificationsController],
+  providers: [{ provide: CONFIG, useFactory: () => readConfig() },Database,IdentityGuard,ActionsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService,AuditorQualificationsService],
 })
 export class AppModule {}
