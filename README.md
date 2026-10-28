@@ -103,3 +103,12 @@ La migration `007_audit_templates.sql` ajoute des modèles versionnés par site,
 Dans un audit planifié, le responsable d’audit peut copier un modèle du même site et du même référentiel/édition exacts. Une checklist existante nécessite une confirmation de remplacement; les questions copiées reçoivent de nouveaux identifiants et aucun résultat ou preuve. La copie et sa provenance sont enregistrées dans la même transaction. La checklist peut être adaptée avant démarrage; la publication d’une autre version du modèle ne change aucun audit existant. Le rapport finalisé conserve les références des modèles copiés et leurs empreintes SHA-256 de checklist. La liste présente les dernières versions et permet leur pagination; l’historique affiche les 100 versions les plus récentes d’un code.
 
 Cette bibliothèque ne comporte pas encore de workflow de vérification/approbation des modèles, de retrait, de partage entre sites ni de contenu ISO sous licence. L’application d’un modèle n’atteste pas la qualification d’un auditeur. Compilation, migration et recette navigateur/PostgreSQL de cet incrément restent à effectuer.
+
+
+### Planning annuel opérationnel
+
+L’écran Audits affiche l’année courante, les totaux par statut, les retards et douze mois sélectionnables. Choisir un mois filtre la liste; **Tous les mois** rétablit l’année complète et **Toute période** supprime le filtre annuel. La recherche, le statut et le site s’appliquent aux totaux annuels comme à la liste. Une mission est incluse si sa période chevauche l’année/le mois sélectionné : elle peut figurer dans plusieurs mois mais ne compte qu’une fois au total annuel.
+
+Les compteurs proviennent d’une agrégation serveur sur tous les audits autorisés, sans limite liée à la page de liste. La liste utilise désormais des pages de 25 missions. Les retards sont calculés à la date UTC du serveur : début dépassé pour les missions planifiées, fin dépassée pour celles en cours. Les audits annulés/finalisés ne sont pas marqués en retard; les non-conformités d’un rapport finalisé peuvent toutefois rester ouvertes. **Actualiser le planning** recharge les informations; les mutations d’audit déclenchent aussi leur actualisation.
+
+Aucune migration supplémentaire n’est nécessaire pour cette vue : les migrations 001 à 007 restent requises. Il s’agit d’un planning opérationnel; les objectifs/budgets annuels, la qualification des auditeurs, l’approbation formelle et la révision d’un programme annuel restent à ajouter. Compilation et recette PostgreSQL/navigateur demeurent ouvertes.

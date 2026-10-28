@@ -4,6 +4,7 @@ import { ClipboardCheck,Plus,Search } from 'lucide-react';
 import type { AuditChecklistItem,QualityAudit,QualityAuditDetail,QualityAuditList,ReportCurrency,ReportEvent,ReportSeverity,WorkspaceContext } from '@sentinelle/contracts';
 import AuditReport from './AuditReport';
 import AuditTemplatesPanel from './AuditTemplatesPanel';
+import AuditProgrammePanel from './AuditProgrammePanel';
 import { api } from '../lib/use-workspace';
 const states={planned:'Planifié',in_progress:'En cours',completed:'Rapport finalisé',cancelled:'Annulé'};
 const reportStates={reported:'Déclarée',in_analysis:'En analyse',action_plan:'Plan d’actions',effectiveness_review:'Vérification d’efficacité',closed:'Clôturée'};
@@ -15,6 +16,10 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   const [checklist,setChecklist]=useState<AuditChecklistItem[]>([]);
   const [search,setSearch]=useState('');
   const [status,setStatus]=useState('');
+  const [year,setYear]=useState<number|null>(new Date().getUTCFullYear());
+  const [month,setMonth]=useState<number|null>(null);
+  const [page,setPage]=useState(0);
+  const [programmeReload,setProgrammeReload]=useState(0);
   const [loading,setLoading]=useState(true);
   const [requestBusy,setBusy]=useState(false);
   const [templateBusy,setTemplateBusy]=useState(false);
@@ -41,13 +46,15 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   const name=(id:string)=>context.members.find(person=>person.id===id)?.name||'Ancien membre';
   const load=useCallback(async(signal?:AbortSignal)=>{
     const request=++listGeneration.current;
-    const params=new URLSearchParams({search,limit:'100'});
+    const params=new URLSearchParams({search,limit:'25',offset:String(page*25)});
     const site=context.sites.find(site=>site.name===siteName);
     if(site)params.set('siteId',site.id);
     if(status)params.set('status',status);
+    if(year)params.set('year',String(year));
+    if(year&&month)params.set('month',String(month));
     const result=await api<QualityAuditList>(`audits?${params}`,tenant,{signal});
-    if(alive.current&&!signal?.aborted&&request===listGeneration.current)setList(result);
-  },[tenant,siteName,context.sites,search,status]);
+    if(alive.current&&!signal?.aborted&&request===listGeneration.current){setList(result);if(page>0&&page*25>=result.total)setPage(Math.max(0,Math.ceil(result.total/25)-1));}
+  },[tenant,siteName,context.sites,search,status,year,month,page]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;generation.current++;};},[]);
   useEffect(()=>{
     if(!context.canWrite){setLoading(false);return;}
@@ -67,7 +74,7 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
     try{
       const result=await api<QualityAuditDetail>(path,tenant,{method,body:JSON.stringify(input)});
       if(alive.current&&request===generation.current){
-        accept(result);setCreating(false);
+        accept(result);setCreating(false);setProgrammeReload(value=>value+1);
         await load().catch(()=>{if(alive.current)setError('Enregistrement effectué. Rechargez la liste pour l’actualiser.');});
       }
     }catch(e){if(alive.current&&request===generation.current)setError(message(e));}
@@ -97,15 +104,17 @@ export default function AuditsPage({context,siteName,onOpenReport}:{context:Work
   if(!context.canWrite)return <div className="module-page"><h1>Audits</h1><p className="report-privacy">La préparation et la réalisation des audits sont réservées aux responsables habilités sur les sites concernés.</p></div>;
   return <div className="module-page documents-page audits-page">
     <div className="module-header"><div><div className="eyebrow">AMÉLIORATION CONTINUE</div><h1>Audits</h1><p>Planifier, documenter les preuves et suivre les écarts.</p></div><button className="button" disabled={busy} onClick={()=>{if(!dirty||window.confirm('Abandonner les modifications non enregistrées ?')){generation.current++;setCreating(true);setDetail(null);setHistory(null);setEditingPlan(false);setTemplatesOpen(false);setTemplateDraft(false);setError('');}}}><Plus size={14}/>Planifier un audit</button><button type="button" className="button button-outline" disabled={busy} onClick={()=>setTemplatesOpen(true)}>Modèles de checklist</button></div>
+    <div className="audit-period-controls"><label className="field-label">Année<select className="field-input" value={year??''} disabled={busy} onChange={e=>{setYear(e.target.value?Number(e.target.value):null);setMonth(null);setPage(0);}}><option value="">Toute période</option>{Array.from({length:101},(_,index)=>2000+index).map(value=><option key={value} value={value}>{value}</option>)}</select></label>{month&&<p className="attachments-hint">Liste filtrée sur le mois {month}. <button type="button" disabled={busy} onClick={()=>{setMonth(null);setPage(0);}}>Effacer le mois</button></p>}<button type="button" className="button button-outline" disabled={busy} onClick={()=>{setProgrammeReload(value=>value+1);void load().catch(e=>setError(message(e)));}}>Actualiser le planning</button></div>
+    {year&&<AuditProgrammePanel tenant={tenant} year={year} siteId={context.sites.find(site=>site.name===siteName)?.id} status={status} search={search} selectedMonth={month} disabled={busy} reload={programmeReload} onMonth={value=>{setMonth(value);setPage(0);}}/>}
     {error&&<div className="document-error" role="alert">{error} <button type="button" onClick={()=>{if(audit)void open(audit.id);else void load().catch(e=>setError(message(e)));}}>Actualiser</button></div>}
     {creating&&<AuditForm context={context} siteName={siteName} busy={busy} onCancel={()=>setCreating(false)} onSave={values=>mutate('audits',values)}/>}
     {templatesOpen&&<AuditTemplatesPanel key={`${audit?.id||'library'}.${audit?.standard||''}`} context={context} siteName={siteName} audit={audit} disabled={busy||editingPlan} allowApply={!dirty} onBusyChange={setTemplateBusy} onDraftChange={setTemplateDraft} onClose={()=>setTemplatesOpen(false)} onApply={(templateId,replace)=>audit?mutate(`audits/${audit.id}/template`,{revision:audit.revision,templateId,replace}):Promise.resolve()}/>}
     <div className="documents-layout">
       <section className="panel documents-list" aria-label="Liste des audits">
-        <label className="documents-toolbar"><Search size={14}/><input aria-label="Rechercher un audit" placeholder="Titre ou référentiel…" value={search} disabled={busy} onChange={e=>setSearch(e.target.value)}/></label>
-        <label className="report-filter">Statut<select value={status} disabled={busy} onChange={e=>setStatus(e.target.value)}><option value="">Tous</option>{Object.entries(states).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="documents-toolbar"><Search size={14}/><input aria-label="Rechercher un audit" placeholder="Titre ou référentiel…" value={search} disabled={busy} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label>
+        <label className="report-filter">Statut<select value={status} disabled={busy} onChange={e=>{setStatus(e.target.value);setPage(0);}}><option value="">Tous</option>{Object.entries(states).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         {loading?<p className="documents-empty" role="status">Chargement…</p>:list.items.length?list.items.map(item=><button type="button" disabled={busy} key={item.id} className={`document-list-item ${audit?.id===item.id?'selected':''}`} onClick={()=>void open(item.id)}><span className="document-code">{item.standard}</span><b>{item.title}</b><span className="document-list-meta">{item.siteName} · {item.startsOn}<span className={`document-status status-${item.status}`}>{states[item.status]}</span></span></button>):<p className="documents-empty">Aucun audit dans ce périmètre.</p>}
-        <p className="document-list-foot">{list.items.length} sur {list.total} audits · 100 maximum affichés</p>
+        <p className="document-list-foot">{list.total?`${page*25+1}–${Math.min((page+1)*25,list.total)}`:'0'} sur {list.total} audits</p><div className="audit-list-pagination"><button className="button button-outline" type="button" disabled={busy||loading||page===0} onClick={()=>setPage(value=>value-1)}>Précédent</button><button className="button button-outline" type="button" disabled={busy||loading||(page+1)*25>=list.total} onClick={()=>setPage(value=>value+1)}>Suivant</button></div>
       </section>
       <section className="panel document-detail" aria-label="Détail de l’audit">
         {!audit?<div className="document-start"><ClipboardCheck size={30}/><h2>Du programme au constat</h2><p>Choisissez un audit ou planifiez une mission. Les écarts alimentent le registre des non-conformités et son plan d’actions.</p></div>:<>

@@ -1,4 +1,4 @@
-# Revue du plan — mise à jour du 26 octobre 2026
+# Revue du plan — mise à jour du 28 octobre 2026
 
 ## Décisions confirmées
 
@@ -75,6 +75,14 @@ La migration `007_audit_templates.sql` ajoute la bibliothèque par site et ses v
 Le responsable d’un audit planifié peut copier une version compatible du même site, avec confirmation de remplacement si une checklist existe. Les questions sont copiées sans résultats ni preuves avec de nouveaux identifiants. Le verrou de l’audit, sa révision attendue et l’écriture atomique de la provenance évitent l’écrasement concurrent ou une source fictive sans copie correspondante. Le rapport final conserve toutes les sources copiées; le contenu final de l’audit reste distinct et peut être adapté avant démarrage. Les modifications ultérieures du modèle ne se propagent jamais aux audits existants.
 
 Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git ont été effectués. Aucun test nouveau n’a été ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur restent ouvertes. Programme annuel, qualification et équipe d’auditeurs, approbation/retrait des modèles, partage entre sites, pièces jointes d’audit et diffusion restent à développer.
+
+### Suite audits : planning annuel opérationnel — 28 octobre
+
+Une vue annuelle affiche douze mois, les effectifs par statut et les missions en retard sur le périmètre tenant/site autorisé, avec filtres de recherche et de statut. Les missions sont sélectionnées par chevauchement de dates : les missions couvrant plusieurs mois figurent dans chacun, mais une seule fois au total annuel. Le filtre de mois agit sur la liste et n’altère pas la vue annuelle. La liste est maintenant paginée par 25 missions au lieu de s’arrêter aux 100 premières.
+
+L’API `/audits/programme` calcule les compteurs sur tous les audits autorisés en une requête SQL, sans dépendre de la pagination; l’API de liste accepte les paramètres `year` et `month`. Les retards utilisent la date UTC serveur : début dépassé pour les missions planifiées, fin dépassée pour celles en cours, sans inclure les audits annulés/finalisés. Les compteurs sont actualisés après les mutations et à la demande. Aucun changement de schéma n’est nécessaire.
+
+Ce planning ne remplace pas l’approbation d’un programme annuel. Objectifs/budgets annuels, approbation/révision de programme, qualification et équipe d’auditeurs restent à développer. Les contrôles de syntaxe des services/contrats compatibles avec Node et des espaces Git ont passé; aucun test n’a été ajouté ou exécuté. Compilation, requêtes PostgreSQL et navigateur demeurent à recetter.
 
 ### Prochaines étapes actualisées
 

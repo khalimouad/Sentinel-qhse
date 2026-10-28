@@ -40,9 +40,15 @@ export class AuditFindingDto {
   @ApiProperty({enum:['XOF','XAF','MAD','EUR','USD','GBP']}) @IsIn(['XOF','XAF','MAD','EUR','USD','GBP']) currency!:ReportCurrency;
 }
 export class AuditQuery {
+  @ApiPropertyOptional({minimum:2000,maximum:2100}) @IsOptional() @Type(()=>Number) @IsInt() @Min(2000) @Max(2100) year?:number;
+  @ApiPropertyOptional({minimum:1,maximum:12}) @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) month?:number;
   @ApiPropertyOptional({format:'uuid'}) @IsOptional() @IsUUID() siteId?:string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) search?:string;
   @ApiPropertyOptional({enum:['planned','in_progress','completed','cancelled']}) @IsOptional() @IsIn(['planned','in_progress','completed','cancelled']) status?:AuditStatus;
   @ApiPropertyOptional({default:100}) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=100;
   @ApiPropertyOptional({default:0}) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
+}
+
+export class AuditProgrammeQuery extends OmitType(AuditQuery,['limit','offset','year','month'] as const) {
+  @ApiProperty({minimum:2000,maximum:2100}) @Type(()=>Number) @IsInt() @Min(2000) @Max(2100) year!:number;
 }

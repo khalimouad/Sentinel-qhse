@@ -1,11 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { AuditFinding, AuditTemplate, QualityAudit, QualityAuditDetail, QualityAuditList, ReportEvent } from '@sentinelle/contracts';
+import type { AuditFinding, AuditProgramme, AuditTemplate, QualityAudit, QualityAuditDetail, QualityAuditList, ReportEvent } from '@sentinelle/contracts';
 import type { Principal } from '../auth.js';
 import { Database, type TenantSession } from '../database.js';
 import { ApplyAuditTemplateDto } from './templates.dto.js';
 import { templateColumns, templateUses } from './templates.service.js';
-import { AuditFindingDto, AuditQuery, CreateAuditDto, DecideAuditDto, SaveChecklistDto, UpdateAuditPlanDto } from './dto.js';
+import { AuditFindingDto, AuditProgrammeQuery, AuditQuery, CreateAuditDto, DecideAuditDto, SaveChecklistDto, UpdateAuditPlanDto } from './dto.js';
 const columns=`a.id,a.title,a.standard,a.scope,a.site_id AS "siteId",s.name AS "siteName",a.starts_on::text AS "startsOn",a.ends_on::text AS "endsOn",
   a.lead_id AS "leadId",a.auditee_id AS "auditeeId",a.created_by AS "createdBy",a.status,a.checklist,a.conclusion,a.replan_reason AS "replanReason",a.revision,
   a.report_snapshot AS "reportSnapshot",a.completed_at AS "completedAt",a.created_at AS "createdAt",a.updated_at AS "updatedAt"`;
@@ -36,11 +36,32 @@ export class AuditsService {
   list(principal:Principal,tenant:string|undefined,query:AuditQuery):Promise<QualityAuditList> {
     return this.database.withTenant(principal,tenant,async session=>{
       this.access(session);
-      const where=`WHERE a.tenant_id=$1 AND ($2::uuid IS NULL OR a.site_id=$2) AND ($3::text IS NULL OR a.status=$3) AND ($4::text='' OR strpos(lower(a.title||' '||a.standard),lower($4))>0)`;
-      const args=[session.tenant.id,query.siteId||null,query.status||null,query.search||''];
+      if(query.month&&!query.year)throw new BadRequestException('Une année est obligatoire pour filtrer par mois.');
+      const {where,args}=auditPeriodFilter(session.tenant.id,query);
       const count=await session.db.query(`SELECT count(*)::int AS total FROM app.audits a ${where}`,args);
-      const {rows}=await session.db.query<QualityAudit>(`SELECT ${columns} ${joins} ${where} ORDER BY a.starts_on DESC,a.id LIMIT $5 OFFSET $6`,[...args,query.limit,query.offset]);
+      const {rows}=await session.db.query<QualityAudit>(`SELECT ${columns} ${joins} ${where} ORDER BY a.starts_on DESC,a.id LIMIT $7 OFFSET $8`,[...args,query.limit,query.offset]);
       return {items:rows,total:count.rows[0].total};
+    });
+  }
+  programme(principal:Principal,tenant:string|undefined,query:AuditProgrammeQuery):Promise<AuditProgramme> {
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.access(session);
+      const {where,args}=auditPeriodFilter(session.tenant.id,query);
+      // Counts are computed across the entire authorized scope in one SQL snapshot.
+      // A mission spanning multiple months belongs to each overlapping month.
+      const {rows}=await session.db.query<AuditProgramme>(`WITH filtered AS (
+        SELECT a.status,a.starts_on,a.ends_on FROM app.audits a ${where}
+      ), today AS (SELECT (statement_timestamp() AT TIME ZONE 'UTC')::date AS day),
+      months AS (SELECT n AS month,make_date($7::int,n,1) AS begins,
+        (make_date($7::int,n,1)+interval '1 month')::date AS ends FROM generate_series(1,12) n)
+      SELECT $7::int AS year,(SELECT day::text FROM today) AS "asOf",
+        (SELECT ${programmeCounts} FROM filtered f CROSS JOIN today) AS counts,
+        (SELECT jsonb_agg(data ORDER BY month) FROM (
+          SELECT m.month,jsonb_build_object('month',m.month)||
+            (SELECT ${programmeCounts} FROM filtered f CROSS JOIN today WHERE f.starts_on<m.ends AND f.ends_on>=m.begins) AS data
+          FROM months m
+        ) monthly) AS months`,[...args,query.year]);
+      return rows[0];
     });
   }
   detail(principal:Principal,tenant:string|undefined,id:string) { return this.database.withTenant(principal,tenant,session=>this.detailIn(session,id)); }
@@ -147,3 +168,24 @@ export class AuditsService {
     });
   }
 }
+
+function auditPeriodFilter(tenantId:string,query:{siteId?:string;status?:string;search?:string;year?:number;month?:number}) {
+  let from:string|null=null,until:string|null=null;
+  if(query.year){
+    const month=query.month||1;
+    from=`${query.year}-${String(month).padStart(2,'0')}-01`;
+    until=query.month&&month<12?`${query.year}-${String(month+1).padStart(2,'0')}-01`:`${query.year+1}-01-01`;
+  }
+  return {
+    where:`WHERE a.tenant_id=$1 AND ($2::uuid IS NULL OR a.site_id=$2) AND ($3::text IS NULL OR a.status=$3)
+      AND ($4::text='' OR strpos(lower(a.title||' '||a.standard),lower($4))>0)
+      AND ($5::date IS NULL OR (a.starts_on<$6::date AND a.ends_on>=$5::date))`,
+    args:[tenantId,query.siteId||null,query.status||null,query.search||'',from,until],
+  };
+}
+const programmeCounts=`jsonb_build_object('total',count(*)::int,
+  'planned',count(*) FILTER(WHERE f.status='planned')::int,
+  'inProgress',count(*) FILTER(WHERE f.status='in_progress')::int,
+  'completed',count(*) FILTER(WHERE f.status='completed')::int,
+  'cancelled',count(*) FILTER(WHERE f.status='cancelled')::int,
+  'overdue',count(*) FILTER(WHERE (f.status='planned' AND f.starts_on<today.day) OR (f.status='in_progress' AND f.ends_on<today.day))::int)`;

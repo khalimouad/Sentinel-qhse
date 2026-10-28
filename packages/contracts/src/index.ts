@@ -106,3 +106,11 @@ export interface AuditTemplateSource {
   appliedRevision:number; appliedBy:string; appliedAt:string;
 }
 export interface AuditTemplateUse extends AuditTemplateSource { id:string }
+
+export interface AuditProgrammeCounts {
+  total:number; planned:number; inProgress:number; completed:number; cancelled:number; overdue:number;
+}
+export interface AuditProgramme {
+  year:number; asOf:string; counts:AuditProgrammeCounts;
+  months:({month:number}&AuditProgrammeCounts)[];
+}
