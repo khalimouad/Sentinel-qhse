@@ -118,6 +118,14 @@ Les actions de traitement rejoignent le plan commun, ses commentaires et notific
 
 Matrices configurables, déclinaisons DUERP/AMDEC et sectorielles, pièces jointes, rappels de revue et export complet restent ouverts. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent; aucun test ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur demeurent à effectuer.
 
+### Socle partagé : vue d’ensemble opérationnelle réelle
+
+La route `/overview` agrège, en une requête SQL, toutes les données autorisées du tenant/site : actions et échéances, publications et accusés de lecture, signalements ouverts, audits planifiés/en cours et risques non archivés. Les compteurs ne dépendent pas des pages chargées. Les lecteurs ne reçoivent pas de compteurs d’audits/risques, et les actions/signalements conservent leur confidentialité sous RLS. Six actions ouvertes sont proposées par retard, priorité et échéance, avec accès au suivi et clôture à version attendue.
+
+L’accueil retire les anciens pourcentages, graphiques, échéances et synthèses de risques fictifs. La conformité reste un aperçu distinct : aucun taux réglementaire n’est présenté comme calculé. Le menu d’actions reste limité aux 100 plus récentes; ses statistiques sont explicitement calculées sur les données chargées, et les anciens messages de tendance/synchronisation fictive ont été retirés. Les échéances utilisent la date UTC serveur; l’heure d’actualisation est affichée en Europe/Paris. Aucun changement de schéma n’est requis au-delà des migrations existantes.
+
+Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent. Aucun test ajouté ou exécuté. Compilation, requête PostgreSQL et recette navigateur restent à vérifier. Le dernier workflow GitHub consulté (`40849026215`) n’a eu aucun runner et n’a exécuté aucune étape : aucun résultat de build ne peut en être déduit.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
@@ -133,4 +141,4 @@ Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-q
 
 Un tenant ne doit pouvoir accéder à aucune donnée ni pièce jointe d’un autre tenant; les restrictions de sites et d’enquêtes doivent aussi s’appliquer aux recherches, exports, notifications et outils d’administration. Vérifier restauration, export complet, performances, supervision, sauvegardes, sécurité OIDC et gestion des secrets. Le nom d’une région dans la base constitue une métadonnée, pas une preuve de résidence ou de conformité juridique.
 
-Les graphiques, synthèses de risques du tableau de bord général et textes réglementaires de démonstration restent des aperçus identifiés comme exemples. Le registre des risques et sa matrice sont connectés aux données serveur. Ils ne constituent ni mesures réelles ni avis réglementaires.
+La vue d’ensemble et les registres connectés présentent les données serveur autorisées. Les textes réglementaires de démonstration restent des exemples sans source vérifiée et ne constituent pas des avis réglementaires. Aucun taux de conformité réglementaire n’est encore calculé.

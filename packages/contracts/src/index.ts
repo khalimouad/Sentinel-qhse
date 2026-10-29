@@ -151,3 +151,12 @@ export interface Risk {
 }
 export interface RiskDetail {risk:Risk;actions:Action[]}
 export interface RiskList {items:Risk[];total:number;scopeTotal:number;overdue:number;matrix:{likelihood:number;severity:number;count:number}[]}
+
+export interface OverviewSummary {
+  asOf:string; asOfDate:string; siteCount:number;
+  actions:{total:number;open:number;closed:number;overdue:number;dueSoon:number;owners:number};
+  documents:{published:number;unread:number};reports:{open:number;criticalOpen:number};
+  audits:{planned:number;inProgress:number;overdue:number}|null;
+  risks:{tracked:number;critical:number;high:number;moderate:number;low:number;reviewOverdue:number}|null;
+  notificationUnread:number;nextActions:Action[];
+}
