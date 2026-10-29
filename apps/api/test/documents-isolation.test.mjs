@@ -24,7 +24,7 @@ async function transaction(fn) {
 }
 async function draft(db) {
   const id=randomUUID(),version=randomUUID();
-  await db.query('INSERT INTO app.documents(id,tenant_id,site_id,code,title) VALUES($1,$2,$3,$4,$5)',[id,tenant,site,`TEST-${id}`,'Procédure de test']);
+  await db.query('INSERT INTO app.documents(id,tenant_id,site_id,code,title) VALUES($1,$2,$3,$4,$5)',[id,tenant,site,`TEST-${id.slice(0,8).toUpperCase()}`,'Procédure de test']);
   await db.query(`INSERT INTO app.document_versions(id,tenant_id,site_id,document_id,number,content,author_id,reviewer_id,approver_id)
     VALUES($1,$2,$3,$4,1,$5,$6,$7,$8)`,[version,tenant,site,id,'Contenu maîtrisé',author,reviewer,approver]);
   return { id,version };

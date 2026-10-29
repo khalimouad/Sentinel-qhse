@@ -15,7 +15,9 @@ export function readConfig(env = process.env) {
       throw new Error('OIDC_JWKS_URI requires HTTPS; local HTTP is allowed only in development.');
     }
   }
-  const port = Number(env.API_PORT || 4000);
+  if (env.AUTH_REQUIRE_MFA && !['true','false'].includes(env.AUTH_REQUIRE_MFA)) throw new Error('AUTH_REQUIRE_MFA must be true or false.');
+  const requireMfa = env.AUTH_REQUIRE_MFA === 'true';
+  const port = Number(env.API_PORT || env.PORT || 4000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid API_PORT.');
   let storage=null;
   if(env.S3_BUCKET){
@@ -24,7 +26,7 @@ export function readConfig(env = process.env) {
     storage={bucket:env.S3_BUCKET,region:env.S3_REGION,endpoint:env.S3_ENDPOINT,forcePathStyle:env.S3_FORCE_PATH_STYLE==='true'};
   }
   return {
-    host, port, devAuth, databaseUrl: env.DATABASE_URL,
+    host, port, devAuth, requireMfa, databaseUrl: env.DATABASE_URL,
     issuer: env.OIDC_ISSUER || '', audience: env.OIDC_AUDIENCE || '', jwksUri: env.OIDC_JWKS_URI || '',
     devIssuer: 'urn:sentinelle:development', devSubject: 'jean-dupont',
     storage,

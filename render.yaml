@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: sentinel-qhse-api-test
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: .
+    buildCommand: npm ci --include=dev && npm run build -w @sentinelle/contracts && npm run build -w @sentinelle/api
+    startCommand: npm run start -w @sentinelle/api
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: NODE_ENV
+        value: production
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: AUTH_REQUIRE_MFA
+        value: 'true'
+      - key: DATABASE_URL
+        sync: false
+      - key: OIDC_ISSUER
+        sync: false
+      - key: OIDC_AUDIENCE
+        value: authenticated
+      - key: OIDC_JWKS_URI
+        sync: false

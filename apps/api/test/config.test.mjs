@@ -28,3 +28,17 @@ test('file storage stays optional and validates region and endpoint without expo
   const config=readConfig({...local,S3_BUCKET:'sentinelle-files',S3_REGION:'us-east-1',S3_ENDPOINT:'http://127.0.0.1:9000',S3_FORCE_PATH_STYLE:'true'});
   assert.equal(config.storage.forcePathStyle,true);assert.equal(config.storage.bucket,'sentinelle-files');
 });
+
+test('MFA enforcement is explicit and rejects invalid configuration',()=>{
+  const env={NODE_ENV:'development',DATABASE_URL:'postgresql://localhost/db',DEV_AUTH_ENABLED:'true'};
+  assert.equal(readConfig(env).requireMfa,false);
+  assert.equal(readConfig({...env,AUTH_REQUIRE_MFA:'true'}).requireMfa,true);
+  assert.throws(()=>readConfig({...env,AUTH_REQUIRE_MFA:'yes'}),/AUTH_REQUIRE_MFA/);
+});
+
+
+test('hosted PORT is used unless API_PORT is set',()=>{
+  assert.equal(readConfig({...local,PORT:'12345'}).port,12345);
+  assert.equal(readConfig({...local,PORT:'12345',API_PORT:'12346'}).port,12346);
+  assert.throws(()=>readConfig({...local,PORT:'not-a-port'}),/API_PORT/);
+});

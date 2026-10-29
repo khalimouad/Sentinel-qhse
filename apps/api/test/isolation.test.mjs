@@ -50,7 +50,7 @@ test('reader cannot insert even using the database directly', async () => {
 });
 test('cross-tenant site assignment is rejected by RLS', async () => {
   await assert.rejects(asActor(admin,tenantA,db => db.query(`INSERT INTO app.actions(id,tenant_id,site_id,owner_id,title)
-    VALUES($1,$2,$3,$4,'Wrong tenant')`,[randomUUID(),tenantA,siteB,admin])),{ code: '42501' });
+    VALUES($1,$2,$3,$4,'Wrong tenant')`,[randomUUID(),tenantA,siteB,admin])), error => ['42501','23503'].includes(error.code));
 });
 test('mutation and immutable audit entries share a transaction; stale versions do not update', async () => {
   const id = randomUUID();

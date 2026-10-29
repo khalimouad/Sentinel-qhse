@@ -28,6 +28,8 @@ export class IdentityGuard implements CanActivate {
         algorithms: ['RS256', 'ES256'], requiredClaims: ['exp', 'iat', 'iss', 'sub', 'aud'], clockTolerance: 5,
       });
       if (!payload.sub) throw new Error('Missing subject');
+      // Check the assurance level only after verifying signature, issuer and audience.
+      if (this.config.requireMfa && payload.aal !== 'aal2') throw new Error('Multi-factor authentication required');
       request.principal = { issuer: this.config.issuer, subject: payload.sub, authentication: 'oidc' };
       return true;
     } catch { throw new UnauthorizedException('The access token is invalid or expired.'); }

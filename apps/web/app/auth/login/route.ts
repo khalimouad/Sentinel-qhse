@@ -4,6 +4,7 @@ import { oidcConfiguration, publicWebUrl } from '../../../lib/oidc';
 import { cookieOptions, flowCookie, seal } from '../../../lib/session';
 
 export async function GET(request: NextRequest) {
+  if(process.env.AUTH_MODE==='supabase'){const target=new URL('/auth/password',request.url);if(request.nextUrl.searchParams.get('returnTo')==='admin')target.searchParams.set('returnTo','admin');return NextResponse.redirect(target);}
   try {
     const config = await oidcConfiguration();
     const verifier = oidc.randomPKCECodeVerifier();
