@@ -1,7 +1,7 @@
 import { BadRequestException,ConflictException,ForbiddenException,Injectable,NotFoundException } from '@nestjs/common';
 import { type Principal } from '../auth.js';
 import { Database } from '../database.js';
-import { PlatformAccountQuery,PlatformHistoryQuery,CompanyDto,CompanyMetadataDto,SiteMetadataDto,PlatformAccountDto,PlatformAccessDto,PlatformQuery,PlatformSiteDto } from './dto.js';
+import { PlatformInvitationDto,PlatformAccountQuery,PlatformHistoryQuery,CompanyDto,CompanyMetadataDto,SiteMetadataDto,PlatformAccountDto,PlatformAccessDto,PlatformQuery,PlatformSiteDto } from './dto.js';
 @Injectable()
 export class PlatformService {
  constructor(private readonly database:Database){}
@@ -24,6 +24,8 @@ export class PlatformService {
  detail(principal:Principal,id:string){return this.run(principal,async db=>{const result=(await db.query('SELECT identity.platform_company($1) AS result',[id])).rows[0].result;if(!result)throw new NotFoundException('Entreprise introuvable.');return result;});}
  accounts(p:Principal,id:string,q:PlatformAccountQuery){return this.run(p,async db=>(await db.query('SELECT identity.platform_accounts($1,$2,$3,$4,$5,$6) AS result',[id,q.search,q.role,q.status,q.limit,q.offset])).rows[0].result);}
  history(p:Principal,id:string,q:PlatformHistoryQuery){return this.run(p,async db=>(await db.query('SELECT identity.platform_history($1,$2,$3,$4,$5) AS result',[id,q.search,q.operation,q.limit,q.offset])).rows[0].result);}
+ invitations(p:Principal,id:string,q:PlatformQuery){return this.run(p,async db=>(await db.query('SELECT identity.platform_invitation_list($1,$2,$3) AS result',[id,q.limit,q.offset])).rows[0].result);}
+ requestInvitation(p:Principal,id:string,input:PlatformInvitationDto){return this.run(p,async db=>{const {note,idempotencyKey,...payload}=input;return (await db.query('SELECT identity.platform_invitation_create($1,$2::jsonb,$3,$4) AS result',[id,JSON.stringify(payload),idempotencyKey,note])).rows[0].result;});}
  private provision(principal:Principal,command:string,id:string|null,input:CompanyDto|PlatformSiteDto|PlatformAccountDto|PlatformAccessDto){
   return this.run(principal,async db=>{
    const {note,...payload}=input;

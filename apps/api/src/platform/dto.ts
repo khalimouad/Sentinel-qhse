@@ -1,5 +1,5 @@
 import { Transform,Type } from 'class-transformer';
-import { ArrayMaxSize,ArrayUnique,IsArray,IsBoolean,IsIn,IsInt,IsString,IsUUID,Matches,Max,MaxLength,Min,MinLength } from 'class-validator';
+import { ArrayMaxSize,ArrayUnique,IsArray,IsBoolean,IsIn,IsInt,IsEmail,IsString,IsUUID,Matches,Max,MaxLength,Min,MinLength } from 'class-validator';
 const trim=({value}:{value:unknown})=>typeof value==='string'?value.trim():value;
 export class PlatformQuery {
  @IsString() @MaxLength(200) search='';
@@ -44,5 +44,11 @@ export class PlatformAccountQuery extends PlatformQuery {
  @IsIn(['all','active','suspended']) status='all';
 }
 export class PlatformHistoryQuery extends PlatformQuery {
- @IsIn(['all','company','site','account','access','company_metadata','site_metadata']) operation='all';
+ @IsIn(['all','company','site','account','access','company_metadata','site_metadata','invitation_request']) operation='all';
+}
+
+export class PlatformInvitationDto extends AccessFields {
+ @Transform(trim) @IsString() @MinLength(1) @MaxLength(200) name!:string;
+ @Transform(trim) @IsEmail() @MaxLength(254) email!:string;
+ @IsUUID() idempotencyKey!:string;
 }
