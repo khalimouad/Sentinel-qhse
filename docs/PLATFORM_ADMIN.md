@@ -4,7 +4,7 @@ L’écran `/admin` est distinct de l’espace QHSE. Il permet de créer les ent
 
 ## Mise en service
 
-1. Déployer l’API avec PostgreSQL et appliquer les migrations, dont `014_platform_admin.sql`, avec le propriétaire des migrations (`npm run db:migrate`). Le runtime reste `sentinelle_app`.
+1. Déployer l’API avec PostgreSQL et appliquer les migrations, dont `014_platform_admin.sql` et `015_platform_metadata.sql`, avec le propriétaire des migrations (`npm run db:migrate`). Le runtime reste `sentinelle_app`.
 2. Configurer le fournisseur OIDC de l’API et du web (voir `.env.example`). Créer le premier compte opérateur chez ce fournisseur. Le fournisseur reste responsable des mots de passe, MFA et récupération de compte.
 3. Dans une session d’exploitation disposant de `DATABASE_ADMIN_URL`, renseigner `PLATFORM_ADMIN_ISSUER`, `PLATFORM_ADMIN_SUBJECT` et `PLATFORM_ADMIN_NAME`. Utiliser les valeurs exactes `iss` et `sub` de cette identité. Exécuter `npm run platform:bootstrap`. Ne jamais transmettre `DATABASE_ADMIN_URL` au runtime web/API ni commettre ces variables.
 4. Se connecter au web, puis ouvrir `/admin`. Un opérateur sans appartenance à une entreprise voit un lien vers l’administration dans le message d’absence d’organisation. Le script ne lui donne aucun accès aux dossiers QHSE.
@@ -26,6 +26,14 @@ Le bootstrap est une opération réservée au propriétaire de la base. Aucun en
 
 Le formulaire rattache les identités chez le fournisseur configuré : il ne crée pas les comptes chez ce fournisseur et n’envoie pas d’invitation. Les identifiants `sub` ne doivent pas être déduits des e-mails. Le rattachement via invitation et les connecteurs d’administration des fournisseurs restent à développer.
 
-Le catalogue des entreprises est paginé; la fiche charge tous ses sites et comptes et 50 événements. La pagination détaillée des très grandes entreprises reste à ajouter. Les modifications du nom d’entreprise et des métadonnées de site, la facturation et le changement des droits plateforme ne sont pas exposés dans ce premier écran.
+Le catalogue des entreprises est paginé; la fiche charge tous ses sites et comptes et 50 événements. La pagination détaillée des très grandes entreprises reste à ajouter. La facturation et le changement des droits plateforme ne sont pas exposés dans cet écran.
 
-Le build web Vercel précédent a réussi. Ce lot nécessite encore l’exécution réelle de la migration, la validation du build API et la vérification de l’isolation, de la suspension et des parcours navigateur avec un fournisseur OIDC. Aucun test supplémentaire n’a été exécuté pour ce lot.
+Les builds API et web du lot initial d’administration ont réussi sur Vercel. Les migrations nécessitent encore leur exécution réelle et la vérification de l’isolation, de la suspension et des parcours navigateur avec un fournisseur OIDC. Aucun test supplémentaire n’a été exécuté pour ce lot.
+
+## Modification des entreprises et sites
+
+La migration `015_platform_metadata.sql` ajoute des révisions distinctes aux entreprises et sites. L’opérateur peut modifier nom, région de référence et juridictions d’une entreprise, et nom/code pays d’un site. Les formulaires sont préremplis, demandent un motif et transmettent la révision lue. Un conflit impose une actualisation avant une nouvelle soumission.
+
+Les routes `POST /platform/companies/:id/metadata` et `POST /platform/companies/:id/sites/:siteId/metadata` appellent une fonction PostgreSQL limitée qui vérifie le rôle plateforme, verrouille d’abord l’entreprise puis le site, contrôle la révision et journalise les valeurs avant/après dans la même transaction. Aucun droit direct UPDATE sur les entreprises/sites n’est accordé au runtime. Un site d’une autre entreprise est introuvable dans cette route.
+
+Le changement ne touche ni les identifiants, ni les appartenances, ni les accès aux sites. Les snapshots historiques déjà enregistrés conservent leurs noms d’origine. La région de référence reste descriptive; la modifier ne déplace pas les données. Les juridictions enregistrées ne recalculent pas automatiquement les obligations réglementaires.

@@ -164,3 +164,7 @@ La vue d’ensemble et les registres connectés présentent les données serveur
 La migration `014_platform_admin.sql`, les routes `/platform/*` et l’écran `/admin` ajoutent la création d’entreprises/sites, le rattachement d’identités du fournisseur configuré et la modification/suspension des rôles et accès par site. Le registre privé des opérateurs de plateforme est distinct des administrateurs d’entreprise. Les opérations sont motivées, journalisées et les modifications d’adhésion utilisent une révision attendue. Aucun droit de lecture globale des dossiers QHSE n’est ajouté.
 
 La procédure d’amorçage et les limites sont documentées dans `docs/PLATFORM_ADMIN.md`. La création des identités chez le fournisseur, les invitations et la pagination détaillée des comptes restent à développer. Migration et isolation doivent encore être validées dans PostgreSQL avec des identités réelles.
+
+## Administration — modification des entreprises et sites
+
+La migration `015_platform_metadata.sql` et les formulaires de `/admin` permettent de modifier les métadonnées des entreprises/sites avec motif, révision attendue et journal avant/après atomique. Les verrous suivent l’ordre entreprise puis site et la fonction refuse un site extérieur à l’entreprise sélectionnée. Les droits plateforme restent distincts des droits métier. La migration et les conflits concurrents restent à valider dans PostgreSQL.

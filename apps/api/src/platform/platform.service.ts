@@ -1,7 +1,7 @@
 import { BadRequestException,ConflictException,ForbiddenException,Injectable,NotFoundException } from '@nestjs/common';
 import { type Principal } from '../auth.js';
 import { Database } from '../database.js';
-import { CompanyDto,PlatformAccountDto,PlatformAccessDto,PlatformQuery,PlatformSiteDto } from './dto.js';
+import { CompanyDto,CompanyMetadataDto,SiteMetadataDto,PlatformAccountDto,PlatformAccessDto,PlatformQuery,PlatformSiteDto } from './dto.js';
 @Injectable()
 export class PlatformService {
  constructor(private readonly database:Database){}
@@ -11,7 +11,9 @@ export class PlatformService {
    if(!result.rows[0].allowed)throw new ForbiddenException('Administration de plateforme réservée aux opérateurs habilités.');
    try{return await operation(db);}catch(error){
     const code=(error as {code?:string}).code;
-    if(code==='23505'||code==='40001')throw new ConflictException('Cette identité existe déjà dans l’entreprise ou ses accès ont changé. Actualisez.');
+    if(code==='40001')throw new ConflictException('Les données ont été modifiées par un autre administrateur. Actualisez la fiche avant de recommencer.');
+    if(code==='23505')throw new ConflictException('Un site portant ce nom ou un compte rattaché à cette identité existe déjà dans cette entreprise.');
+    if(code==='P0002')throw new NotFoundException('Entreprise ou site introuvable.');
     if(code==='23514'||code==='23503')throw new BadRequestException('Vérifiez les données, les sites et l’identité : ils doivent appartenir à l’entreprise sélectionnée.');
     throw error;
    }
@@ -26,6 +28,13 @@ export class PlatformService {
    const data:Record<string,unknown>={...payload};
    if(command==='account')data.issuer=principal.issuer;
    const result=await db.query('SELECT identity.platform_provision($1,$2,$3::jsonb,$4) AS id',[command,id,JSON.stringify(data),note]);
+   return {id:result.rows[0].id};
+  });
+ }
+ metadata(p:Principal,id:string,siteId:string|null,input:CompanyMetadataDto|SiteMetadataDto){
+  return this.run(p,async db=>{
+   const {revision,note,...payload}=input;
+   const result=await db.query('SELECT identity.platform_update_metadata($1,$2,$3,$4::jsonb,$5) AS id',[id,siteId,revision,JSON.stringify(payload),note]);
    return {id:result.rows[0].id};
   });
  }

@@ -31,3 +31,10 @@ export class PlatformAccessDto extends AccessFields {
  @IsBoolean() enabled!:boolean;
  @IsInt() @Min(1) revision!:number;
 }
+
+export class CompanyMetadataDto extends CompanyDto {
+ @IsInt() @Min(1) revision!:number;
+}
+export class SiteMetadataDto extends PlatformSiteDto {
+ @IsInt() @Min(1) revision!:number;
+}
