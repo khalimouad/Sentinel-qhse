@@ -126,6 +126,14 @@ L’accueil retire les anciens pourcentages, graphiques, échéances et synthès
 
 Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent. Aucun test ajouté ou exécuté. Compilation, requête PostgreSQL et recette navigateur restent à vérifier. Le dernier workflow GitHub consulté (`40849026215`) n’a eu aucun runner et n’a exécuté aucune étape : aucun résultat de build ne peut en être déduit.
 
+### Registre des obligations : premier parcours manuel
+
+La migration `012_obligations.sql` ajoute les références par tenant/site : juridiction, texte, version/édition saisie, article, lien HTTPS et extrait figés avec empreinte SHA-256. Le menu Conformité remplace les exemples par le registre réel, avec recherche, filtres actif/archivé et évaluation, pagination et historique. La référence doit être vérifiée par un responsable distinct du créateur avant toute évaluation. Vérificateur et date sont attribués par le serveur; le contrôle humain n’est pas une certification automatique du domaine ou du texte.
+
+Les évaluations sont humaines et nominatives, avec statut, conclusion/applicabilité, références de preuves, responsable et prochaine revue non dépassée. Une réévaluation conserve sa trace même si les valeurs sont identiques. L’archivage exige un motif; la réouverture remet la fiche à évaluer sans réécrire la référence historique. Les compteurs de l’accueil présentent les obligations actives enregistrées, les sources non vérifiées, les conclusions et retards, sans taux global. Les lecteurs n’accèdent pas à ce premier registre.
+
+Les sources ne sont ni téléchargées ni inventées par l’application. Versionnement structuré/amendements, liens aux actions, pièces de preuve, connecteurs officiels, rappels, retrait de vérification et propositions IA restent à développer après choix des pays et sources. Les champs de version servent de citation explicite, sans prétendre à une base réglementaire exhaustive. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent; aucun test ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur restent à effectuer.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
@@ -141,4 +149,4 @@ Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-q
 
 Un tenant ne doit pouvoir accéder à aucune donnée ni pièce jointe d’un autre tenant; les restrictions de sites et d’enquêtes doivent aussi s’appliquer aux recherches, exports, notifications et outils d’administration. Vérifier restauration, export complet, performances, supervision, sauvegardes, sécurité OIDC et gestion des secrets. Le nom d’une région dans la base constitue une métadonnée, pas une preuve de résidence ou de conformité juridique.
 
-La vue d’ensemble et les registres connectés présentent les données serveur autorisées. Les textes réglementaires de démonstration restent des exemples sans source vérifiée et ne constituent pas des avis réglementaires. Aucun taux de conformité réglementaire n’est encore calculé.
+La vue d’ensemble et les registres connectés présentent les données serveur autorisées. Les références réglementaires sont maintenant saisies et vérifiées par les responsables; aucun texte n’est préchargé et aucune veille automatique n’est connectée. Aucun taux global de conformité réglementaire n’est calculé.

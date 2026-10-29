@@ -33,6 +33,9 @@ export class OverviewService {
       ), scoped_risks AS (
         SELECT r.residual_score,r.next_review_on FROM app.risks r WHERE $3::boolean AND r.tenant_id=$1
           AND ($2::uuid IS NULL OR r.site_id=$2) AND r.status<>'archived'
+      ), scoped_obligations AS (
+        SELECT o.source_status,o.assessment_status,o.next_review_on FROM app.obligations o WHERE $3::boolean AND o.tenant_id=$1
+          AND ($2::uuid IS NULL OR o.site_id=$2) AND o.lifecycle='active'
       ) SELECT statement_timestamp() AS "asOf",(SELECT day::text FROM today) AS "asOfDate",
         (SELECT count(*)::int FROM app.sites WHERE tenant_id=$1 AND ($2::uuid IS NULL OR id=$2)) AS "siteCount",
         (SELECT jsonb_build_object('total',count(*)::int,'open',count(*) FILTER(WHERE a.status='open')::int,
@@ -56,6 +59,14 @@ export class OverviewService {
           'low',count(*) FILTER(WHERE r.residual_score<=4)::int,
           'reviewOverdue',count(*) FILTER(WHERE r.next_review_on<today.day)::int)
           FROM scoped_risks r CROSS JOIN today) ELSE NULL END AS risks,
+        CASE WHEN $3::boolean THEN (SELECT jsonb_build_object('total',count(*)::int,
+          'unverified',count(*) FILTER(WHERE o.source_status='unverified')::int,
+          'notAssessed',count(*) FILTER(WHERE o.assessment_status='not_assessed')::int,
+          'compliant',count(*) FILTER(WHERE o.assessment_status='compliant')::int,
+          'partial',count(*) FILTER(WHERE o.assessment_status='partial')::int,
+          'noncompliant',count(*) FILTER(WHERE o.assessment_status='noncompliant')::int,
+          'notApplicable',count(*) FILTER(WHERE o.assessment_status='not_applicable')::int,
+          'overdue',count(*) FILTER(WHERE o.next_review_on<today.day)::int) FROM scoped_obligations o CROSS JOIN today) ELSE NULL END AS compliance,
         (SELECT count(*)::int FROM app.notifications n WHERE n.tenant_id=$1 AND n.recipient_id=identity.actor_id()
           AND ($2::uuid IS NULL OR n.site_id=$2) AND n.read_at IS NULL) AS "notificationUnread",
         (SELECT coalesce(jsonb_agg(to_jsonb(item)-'rank' ORDER BY item.rank),'[]'::jsonb) FROM (

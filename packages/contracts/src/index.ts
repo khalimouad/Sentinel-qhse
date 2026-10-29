@@ -158,5 +158,15 @@ export interface OverviewSummary {
   documents:{published:number;unread:number};reports:{open:number;criticalOpen:number};
   audits:{planned:number;inProgress:number;overdue:number}|null;
   risks:{tracked:number;critical:number;high:number;moderate:number;low:number;reviewOverdue:number}|null;
+  compliance:{total:number;unverified:number;notAssessed:number;compliant:number;partial:number;noncompliant:number;notApplicable:number;overdue:number}|null;
   notificationUnread:number;nextActions:Action[];
 }
+
+export type ObligationAssessmentStatus='not_assessed'|'compliant'|'partial'|'noncompliant'|'not_applicable';
+export interface Obligation {
+  id:string;siteId:string;siteName:string;title:string;jurisdiction:string;sourceTitle:string;sourceVersion:string;article:string;sourceUrl:string;excerpt:string;sourceSha256:string;
+  ownerId:string;createdBy:string;nextReviewOn:string;reviewOverdue:boolean;lifecycle:'active'|'archived';sourceStatus:'unverified'|'verified';
+  verificationNote:string|null;verifiedBy:string|null;verifiedAt:string|null;assessmentStatus:ObligationAssessmentStatus;assessmentNote:string|null;
+  evidenceReference:string|null;assessedBy:string|null;assessedAt:string|null;lastChangeNote:string;revision:number;createdAt:string;updatedAt:string;
+}
+export interface ObligationList {items:Obligation[];total:number;unverified:number;overdue:number}
