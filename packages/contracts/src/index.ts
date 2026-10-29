@@ -132,3 +132,10 @@ export interface ActionComment {
   id:string; actionId:string; authorId:string; authorName:string; body:string; createdAt:string;
 }
 export interface ActionCommentList { items:ActionComment[]; total:number }
+
+export interface WorkspaceNotification {
+  id:string; kind:'action_assigned'|'action_comment'; actionId:string; actionTitle:string; reportId:string|null;
+  actorId:string; actorName:string; createdAt:string; readAt:string|null;
+}
+export interface NotificationList { items:WorkspaceNotification[]; total:number; unread:number }
+export interface NotificationReceipt { id:string; readAt:string }

@@ -100,6 +100,14 @@ Les reprises du même envoi utilisent une clé d’idempotence par tenant/action
 
 Notifications, mentions, fichiers joints, extension aux autres objets et export/rétention complets restent ouverts. L’installation des dépendances a encore échoué sur un refus de connexion réseau de l’environnement. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent; aucun test ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur restent à effectuer.
 
+### Socle partagé : notifications internes transactionnelles
+
+La migration `010_in_app_notifications.sql` ajoute les notifications d’attribution d’action et de commentaire adressé au responsable, hors auto-notification. Elles sont créées dans la transaction métier, avec déduplication par destinataire/type/source. Les anciennes données ne génèrent pas de notifications rétroactives. La cloche d’illustration est remplacée par un compteur et une boîte paginée réels, avec filtre non-lues, lecture individuelle et accès aux commentaires et au signalement éventuel.
+
+Le destinataire doit rester autorisé à voir l’action; les politiques de notifications héritent de sa confidentialité tenant/site/signalement, même pour le décompte. La lecture est horodatée serveur et idempotente; les autres utilisateurs ne peuvent ni lire ni acquitter une notification. Le runtime ne peut pas en créer manuellement ni les supprimer. Le compteur utilise une actualisation périodique et au retour de fenêtre/onglet, pas du temps réel.
+
+Notifications de documents/audits, rappels d’échéance, préférences, e-mail/SMS/push et file de livraison externe restent ouverts. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent. Aucun test ajouté ou exécuté; compilation, migration et recette PostgreSQL/navigateur restent à effectuer.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).

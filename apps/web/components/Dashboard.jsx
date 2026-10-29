@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpenCheck, CalendarDays, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, ClipboardCheck, Clock3, Download, FileCheck2, FileText, Filter, Globe2, LayoutDashboard, ListChecks, LockKeyhole, Menu, MoreHorizontal, Plus, Search, Settings2, Shield, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Users, X, Zap } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BookOpenCheck, CalendarDays, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, ClipboardCheck, Clock3, Download, FileCheck2, FileText, Filter, Globe2, LayoutDashboard, ListChecks, LockKeyhole, Menu, MoreHorizontal, Plus, Search, Settings2, Shield, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Users, X, Zap } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useWorkspace } from '../lib/use-workspace';
 import DocumentsPage from './DocumentsPage';
 import ReportsPage from './ReportsPage';
 import AuditsPage from './AuditsPage';
 import ActionDiscussion from './ActionDiscussion';
+import NotificationCenter from './NotificationCenter';
 
 const chartData = [
   { month: 'Avr.', conformity: 65, actions: 46 }, { month: 'Mai', conformity: 68, actions: 49 },
@@ -40,7 +41,6 @@ export default function App() {
   const [activeSite, setActiveSite] = useState('Tous les sites');
   const [siteOpen, setSiteOpen] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
-  const [showNotification, setShowNotification] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [showAction, setShowAction] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
@@ -108,8 +108,7 @@ export default function App() {
         <div className="topbar-right">
           <div className="site-selector-wrap"><button className="site-selector" onClick={() => setSiteOpen(!siteOpen)}><span className="site-pulse" />{activeSite}<ChevronDown size={14} /></button>{siteOpen && <div className="dropdown site-dropdown">{['Tous les sites', ...(context?.sites.map(site => site.name) || [])].map(s => <button key={s} onClick={() => { setActiveSite(s); setSiteOpen(false); }}>{s}{activeSite === s && <Check size={14} />}</button>)}</div>}</div>
           <span className="topbar-divider" />
-          <button className="icon-button notification-trigger" aria-label="Notifications" onClick={() => setShowNotification(!showNotification)}><Bell size={18} /><span className="notification-dot" /></button>
-          {showNotification && <div className="dropdown notification-pop"><div className="pop-heading"><b>Exemples de notifications</b><span>Aperçu</span></div><div className="notification-row"><span className="notif-icon amber-bg"><Clock3 size={15} /></span><div><b>Échéance réglementaire proche</b><small>Autorisation de rejet · dans 3 jours</small></div></div><div className="notification-row"><span className="notif-icon green-bg"><CheckCheck size={15} /></span><div><b>Revue documentaire terminée</b><small>Procédure QUA-014 · il y a 1 h</small></div></div><button className="all-notifs" onClick={() => { setShowNotification(false); notify('Toutes les notifications sont affichées'); }}>Voir toutes les notifications <ArrowRight size={13} /></button></div>}
+          {context&&<NotificationCenter key={context.tenant.id} context={context} onOpen={notification=>{if(notification.reportId){setReportToOpen(notification.reportId);setPage('Incidents & NC');}else{setPage('Mes actions');}setDiscussion({tenantId:context.tenant.id,actionId:notification.actionId,title:notification.actionTitle});}}/>}
           <div className="top-avatar">{actorInitials}</div>
         </div>
       </header>
