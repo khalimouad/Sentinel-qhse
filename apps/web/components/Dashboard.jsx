@@ -86,7 +86,7 @@ export default function App() {
 
     <main className="main-area">
       {workspace.loading && <div className="workspace-banner" role="status">Chargement de votre espace…</div>}
-      {workspace.error && <div className="workspace-banner workspace-error" role="alert"><span>{workspace.error}</span>{workspace.needsLogin ? <a href="/auth/login">Se connecter</a> : <button onClick={workspace.refresh}>Réessayer</button>}</div>}
+      {workspace.error && <div className="workspace-banner workspace-error" role="alert"><span>{workspace.error}</span><a href="/admin">Administration de la plateforme</a>{workspace.needsLogin ? <a href="/auth/login">Se connecter</a> : <button onClick={workspace.refresh}>Réessayer</button>}</div>}
       {context && <div className="workspace-banner">Vos données sont limitées à votre organisation et à vos sites autorisés. Les obligations de conformité sont référencées et évaluées par vos responsables.</div>}
       {workspace.authentication === 'development' && <div className="workspace-banner">Espace local de démonstration · les actions, documents, audits, risques et signalements sont enregistrés sur le serveur.</div>}
 

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const session = await seal({ accessToken: tokens.access_token },lifetime);
     if (session.length > 3800) throw new Error('Token requires server-side session storage');
     response.cookies.set(sessionCookie,session, { ...cookieOptions, maxAge: lifetime });
+    if(flow.returnTo==='/admin')response.headers.set('Location',new URL('/admin',publicWebUrl()).href);
     return response;
   } catch {
     response.cookies.set(sessionCookie,'', { ...cookieOptions, maxAge: 0 });

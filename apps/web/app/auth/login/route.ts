@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import * as oidc from 'openid-client';
 import { oidcConfiguration, publicWebUrl } from '../../../lib/oidc';
 import { cookieOptions, flowCookie, seal } from '../../../lib/session';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const config = await oidcConfiguration();
     const verifier = oidc.randomPKCECodeVerifier();
@@ -18,7 +18,7 @@ export async function GET() {
     if (process.env.OIDC_AUTHORIZATION_AUDIENCE) parameters.set('audience',process.env.OIDC_AUTHORIZATION_AUDIENCE);
     const url = oidc.buildAuthorizationUrl(config,parameters);
     const response = NextResponse.redirect(url);
-    response.cookies.set(flowCookie,await seal({ verifier,state,nonce },600), { ...cookieOptions, maxAge: 600 });
+    response.cookies.set(flowCookie,await seal({ verifier,state,nonce,returnTo:request.nextUrl.searchParams.get('returnTo')==='admin'?'/admin':'/' },600), { ...cookieOptions, maxAge: 600 });
     response.headers.set('Cache-Control','no-store');
     return response;
   } catch { return NextResponse.json({ message: 'La connexion SSO n’est pas disponible. Contactez votre administrateur.' },{ status: 503 }); }

@@ -1,0 +1,33 @@
+import { Transform,Type } from 'class-transformer';
+import { ArrayMaxSize,ArrayUnique,IsArray,IsBoolean,IsIn,IsInt,IsString,IsUUID,Matches,Max,MaxLength,Min,MinLength } from 'class-validator';
+const trim=({value}:{value:unknown})=>typeof value==='string'?value.trim():value;
+export class PlatformQuery {
+ @IsString() @MaxLength(200) search='';
+ @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;
+ @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
+}
+class ReasonDto { @Transform(trim) @IsString() @MinLength(1) @MaxLength(2000) note!:string; }
+export class CompanyDto extends ReasonDto {
+ @Transform(trim) @IsString() @MinLength(1) @MaxLength(200) name!:string;
+ @Transform(trim) @IsString() @MinLength(1) @MaxLength(100) region!:string;
+ @IsArray() @ArrayMaxSize(50) @ArrayUnique() @Matches(/^[A-Z][A-Z0-9_-]{1,19}$/,{each:true}) jurisdictions!:string[];
+}
+export class PlatformSiteDto extends ReasonDto {
+ @Transform(trim) @IsString() @MinLength(1) @MaxLength(200) name!:string;
+ @Matches(/^[A-Z]{2}$/) countryCode!:string;
+}
+class AccessFields extends ReasonDto {
+ @IsIn(['admin','manager','reader']) role!:'admin'|'manager'|'reader';
+ @IsBoolean() allSites!:boolean;
+ @IsArray() @ArrayMaxSize(500) @ArrayUnique() @IsUUID(undefined,{each:true}) siteIds!:string[];
+}
+export class PlatformAccountDto extends AccessFields {
+ @Transform(trim) @IsString() @MinLength(1) @MaxLength(200) name!:string;
+ // Subject is the exact immutable ID supplied by the identity provider, not an email inference.
+ @IsString() @MinLength(1) @MaxLength(500) subject!:string;
+}
+export class PlatformAccessDto extends AccessFields {
+ @IsUUID() userId!:string;
+ @IsBoolean() enabled!:boolean;
+ @IsInt() @Min(1) revision!:number;
+}

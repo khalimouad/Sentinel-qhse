@@ -158,3 +158,9 @@ Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-q
 Un tenant ne doit pouvoir accéder à aucune donnée ni pièce jointe d’un autre tenant; les restrictions de sites et d’enquêtes doivent aussi s’appliquer aux recherches, exports, notifications et outils d’administration. Vérifier restauration, export complet, performances, supervision, sauvegardes, sécurité OIDC et gestion des secrets. Le nom d’une région dans la base constitue une métadonnée, pas une preuve de résidence ou de conformité juridique.
 
 La vue d’ensemble et les registres connectés présentent les données serveur autorisées. Les références réglementaires sont maintenant saisies et vérifiées par les responsables; aucun texte n’est préchargé et aucune veille automatique n’est connectée. Aucun taux global de conformité réglementaire n’est calculé.
+
+## Administration de la plateforme — premier lot
+
+La migration `014_platform_admin.sql`, les routes `/platform/*` et l’écran `/admin` ajoutent la création d’entreprises/sites, le rattachement d’identités du fournisseur configuré et la modification/suspension des rôles et accès par site. Le registre privé des opérateurs de plateforme est distinct des administrateurs d’entreprise. Les opérations sont motivées, journalisées et les modifications d’adhésion utilisent une révision attendue. Aucun droit de lecture globale des dossiers QHSE n’est ajouté.
+
+La procédure d’amorçage et les limites sont documentées dans `docs/PLATFORM_ADMIN.md`. La création des identités chez le fournisseur, les invitations et la pagination détaillée des comptes restent à développer. Migration et isolation doivent encore être validées dans PostgreSQL avec des identités réelles.
