@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Action, ActionList, AuditEvent, CreateAction, MeResponse, TenantSummary, WorkspaceContext } from '@sentinelle/contracts';
 
-class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
+export class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
 export async function api<T>(path: string,tenant?: string,options?: RequestInit): Promise<T> {
   // Bound the entire request, including reading its response body. Component
   // cancellation still aborts silently through the caller's existing checks.
