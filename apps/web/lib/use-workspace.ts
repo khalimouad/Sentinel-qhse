@@ -4,17 +4,27 @@ import type { Action, ActionList, AuditEvent, CreateAction, MeResponse, TenantSu
 
 class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
 export async function api<T>(path: string,tenant?: string,options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/v1/${path}`,{
-    ...options, cache: 'no-store',
-    headers: { ...(options?.body ? { 'Content-Type': 'application/json' } : {}), ...(tenant ? { 'X-Tenant-Id': tenant } : {}) },
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const messages: Record<number,string> = { 401: 'Connectez-vous pour accéder à votre espace.', 403: 'Vous n’avez pas accès à cet espace ou à cette opération.', 409: 'Les données ou le statut ont changé. Actualisez avant de recommencer.' };
-    const specific=typeof body.message==='string'?body.message:undefined;
-    throw new ApiError(response.status,(response.status===409?specific:undefined)||messages[response.status]||specific||'L’opération a échoué.');
+  // Bound the entire request, including reading its response body. Component
+  // cancellation still aborts silently through the caller's existing checks.
+  const timeout=AbortSignal.timeout(path.startsWith('attachments/')&&path.endsWith('/confirm')?70000:25000);
+  const signal=options?.signal?AbortSignal.any([options.signal,timeout]):timeout;
+  try {
+    const response = await fetch(`/api/v1/${path}`,{
+      ...options,signal,cache:'no-store',
+      headers: { ...(options?.body ? { 'Content-Type': 'application/json' } : {}), ...(tenant ? { 'X-Tenant-Id': tenant } : {}) },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const messages: Record<number,string> = {401:'Connectez-vous pour accéder à votre espace.',403:'Vous n’avez pas accès à cet espace ou à cette opération.',409:'Les données ou le statut ont changé. Actualisez avant de recommencer.'};
+      const specific=typeof body.message==='string'?body.message:undefined;
+      throw new ApiError(response.status,(response.status===409?specific:undefined)||messages[response.status]||specific||'L’opération a échoué.');
+    }
+    return await response.json();
+  } catch(error) {
+    if(timeout.aborted&&!options?.signal?.aborted)throw new Error('Le serveur met trop de temps à répondre. Réessayez dans quelques instants.');
+    if(error instanceof TypeError&&!options?.signal?.aborted)throw new Error('Impossible de joindre le service. Vérifiez votre connexion et réessayez.');
+    throw error;
   }
-  return response.json();
 }
 export function useWorkspace() {
   const [context,setContext] = useState<WorkspaceContext | null>(null);
@@ -31,7 +41,7 @@ export function useWorkspace() {
   const load = useCallback(async (signal?: AbortSignal) => {
     const generation = ++loadGeneration.current;
     activeTenant.current=null;
-    setLoading(true); setError(''); setContext(null); setActions([]);
+    setLoading(true); setError(''); setNeedsLogin(false); setAuthentication(''); setTenants([]); setContext(null); setActions([]);
     try {
       const me = await api<MeResponse>('me',undefined,{ signal });
       if (generation !== loadGeneration.current || signal?.aborted) return;

@@ -8,6 +8,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const mutation = request.method !== 'GET';
   const expectedOrigin = process.env.PUBLIC_WEB_URL ? new URL(process.env.PUBLIC_WEB_URL).origin : request.nextUrl.origin;
   if (mutation && request.headers.get('origin') !== expectedOrigin) return NextResponse.json({ message: 'Origin rejected.' }, { status: 403 });
+  if (process.env.NODE_ENV === 'production' && !process.env.INTERNAL_API_URL) return NextResponse.json({ message: 'Le service applicatif n’est pas encore configuré. Contactez l’administrateur de la plateforme.' },{ status: 503,headers:{'Cache-Control':'no-store'} });
   const token = await accessToken();
   const localDevelopment = process.env.NODE_ENV === 'development' && process.env.DEV_AUTH_ENABLED === 'true';
   if (!token && !localDevelopment) return NextResponse.json({ message: 'Connexion requise.' },{ status: 401 });

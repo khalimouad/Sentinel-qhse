@@ -22,7 +22,7 @@ export default function OverviewPage({context,siteName,onNavigate,onCreateAction
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   useEffect(()=>{
     const controller=new AbortController();setData(null);setError('');setLoading(true);
-    if(!tenant)return()=>controller.abort();
+    if(!tenant){setLoading(false);setError('Votre espace doit être connecté avant de charger les indicateurs.');return()=>controller.abort();}
     if(siteName!=='Tous les sites'&&!siteId){setLoading(false);setError('Ce site n’est plus accessible. Sélectionnez un site autorisé.');return()=>controller.abort();}
     const params=new URLSearchParams();if(siteId)params.set('siteId',siteId);
     void api<OverviewSummary>(`overview?${params}`,tenant,{signal:controller.signal})

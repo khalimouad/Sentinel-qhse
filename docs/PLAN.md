@@ -172,3 +172,9 @@ La migration `015_platform_metadata.sql` et les formulaires de `/admin` permette
 ## Administration — recherche des comptes et historique paginé
 
 La migration `016_platform_lists.sql` remplace les comptes et événements embarqués dans la fiche par deux listes indépendantes avec compteurs complets, recherche et filtres. L’interface affiche 25 lignes par page, conserve les filtres après les mutations et permet de consulter les valeurs avant/après de l’historique. Les fonctions SQL sont réservées aux opérateurs plateforme et ne donnent pas accès aux dossiers métier. Les sites restent chargés ensemble pour les habilitations. Exécution PostgreSQL et vérifications d’isolation restent nécessaires.
+
+## Correction des chargements sans contexte utilisateur
+
+Le diagnostic du déploiement a confirmé que seule la configuration de session est présente : l’URL de l’API et les paramètres OIDC ne sont pas encore renseignés. Le build web réussi ne signifie donc pas que le parcours connecté est opérationnel. L’accès HTTP automatisé au déploiement est en outre bloqué par Vercel Authentication dans cet environnement.
+
+Le tableau de bord ne monte plus les modules métier tant que le contexte utilisateur n’est pas disponible. Il distingue chargement, connexion requise et indisponibilité avec motif et reprise. La vue d’ensemble traite aussi explicitement l’absence de contexte. Les requêtes du client ont un délai maximal (25 secondes, 70 pour confirmation de pièce jointe) tout en conservant l’annulation au changement de page. En production, le proxy renvoie un 503 explicite si l’API n’est pas configurée, au lieu de tenter localhost. L’API hébergée, PostgreSQL/migrations, OIDC et le premier administrateur restent nécessaires pour une utilisation réelle.
