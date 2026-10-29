@@ -13,7 +13,7 @@ export interface Action {
   id: string; title: string; origin: string; siteId: string; siteName: string;
   ownerId: string; ownerName: string; priority: Priority; status: ActionStatus;
   dueDate: string | null; version: number; createdAt: string; updatedAt: string;
-  reportId: string | null;
+  reportId: string | null; riskId:string|null;
 }
 export interface ActionList { items: Action[]; total: number }
 export interface CreateAction {
@@ -134,8 +134,20 @@ export interface ActionComment {
 export interface ActionCommentList { items:ActionComment[]; total:number }
 
 export interface WorkspaceNotification {
-  id:string; kind:'action_assigned'|'action_comment'; actionId:string; actionTitle:string; reportId:string|null;
+  id:string; kind:'action_assigned'|'action_comment'; actionId:string; actionTitle:string; reportId:string|null; riskId:string|null;
   actorId:string; actorName:string; createdAt:string; readAt:string|null;
 }
 export interface NotificationList { items:WorkspaceNotification[]; total:number; unread:number }
 export interface NotificationReceipt { id:string; readAt:string }
+
+export type RiskCategory='quality'|'safety'|'environment'|'compliance'|'governance'|'other';
+export type RiskStatus='active'|'accepted'|'archived';
+export interface Risk {
+  id:string; siteId:string; siteName:string; title:string; description:string; category:RiskCategory; ownerId:string; createdBy:string;
+  inherentLikelihood:number; inherentSeverity:number; residualLikelihood:number; residualSeverity:number;
+  inherentScore:number; residualScore:number; controls:string; nextReviewOn:string; reviewOverdue:boolean;
+  status:RiskStatus; acceptanceNote:string|null; acceptedBy:string|null; acceptedAt:string|null;
+  lastChangeNote:string; revision:number; createdAt:string; updatedAt:string;
+}
+export interface RiskDetail {risk:Risk;actions:Action[]}
+export interface RiskList {items:Risk[];total:number;scopeTotal:number;overdue:number;matrix:{likelihood:number;severity:number;count:number}[]}

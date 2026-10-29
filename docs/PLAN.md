@@ -108,6 +108,16 @@ Le destinataire doit rester autorisé à voir l’action; les politiques de noti
 
 Notifications de documents/audits, rappels d’échéance, préférences, e-mail/SMS/push et file de livraison externe restent ouverts. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent. Aucun test ajouté ou exécuté; compilation, migration et recette PostgreSQL/navigateur restent à effectuer.
 
+### Socle partagé : registre des risques opérationnels
+
+La migration `011_risks.sql` ajoute un registre tenant/site avec responsable habilité, catégories, cotations initiale et résiduelle 1–5, mesures de maîtrise et échéance de revue. Les scores sont calculés dans PostgreSQL. La matrice de l’interface est agrégée sur tout le périmètre autorisé et les filtres métier, puis une case peut filtrer la liste paginée. Les revues dépassées utilisent la date UTC serveur. Les seuils de couleur sont initiaux et fixes; aucune acceptation n’est calculée automatiquement.
+
+Les réévaluations et décisions exigent une révision attendue et un motif. L’acceptation est nominative, réservée à une personne distincte du responsable, avec actions terminées et revue non dépassée. L’archivage exige la fin des actions et un motif. Les risques acceptés/archivés sont figés jusqu’à réouverture. Une action rouverte remet automatiquement son risque en traitement et invalide l’acceptation courante dans la même transaction; l’historique conserve la preuve antérieure.
+
+Les actions de traitement rejoignent le plan commun, ses commentaires et notifications. Leur visibilité hérite du risque, ce qui protège aussi les vues transversales et les compteurs de notifications. Les lecteurs n’ont pas accès au premier registre opérationnel. Les aperçus de risques du tableau de bord général restent explicitement illustratifs; le registre est connecté aux données de l’organisation.
+
+Matrices configurables, déclinaisons DUERP/AMDEC et sectorielles, pièces jointes, rappels de revue et export complet restent ouverts. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent; aucun test ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur demeurent à effectuer.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
@@ -123,4 +133,4 @@ Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-q
 
 Un tenant ne doit pouvoir accéder à aucune donnée ni pièce jointe d’un autre tenant; les restrictions de sites et d’enquêtes doivent aussi s’appliquer aux recherches, exports, notifications et outils d’administration. Vérifier restauration, export complet, performances, supervision, sauvegardes, sécurité OIDC et gestion des secrets. Le nom d’une région dans la base constitue une métadonnée, pas une preuve de résidence ou de conformité juridique.
 
-Les graphiques, risques et textes réglementaires de l’interface restent des aperçus identifiés comme exemples. Ils ne constituent ni mesures réelles ni avis réglementaires.
+Les graphiques, synthèses de risques du tableau de bord général et textes réglementaires de démonstration restent des aperçus identifiés comme exemples. Le registre des risques et sa matrice sont connectés aux données serveur. Ils ne constituent ni mesures réelles ni avis réglementaires.
