@@ -185,3 +185,7 @@ Une action possède au maximum une origine parmi signalement, risque et obligati
 ### Administration des entreprises et des comptes
 
 L’espace `/admin` est réservé aux opérateurs de plateforme et gère entreprises, sites, rattachement des comptes existants et droits d’accès/suspension. Il n’expose pas d’inscription publique. Appliquer la migration `014_platform_admin.sql`, configurer OIDC et amorcer le premier opérateur avec `npm run platform:bootstrap` sous les seuls droits du propriétaire de migration. Voir [la procédure et les limites](docs/PLATFORM_ADMIN.md). Aucun compte privilégié n’est créé automatiquement.
+
+### Essayer sans backend
+
+Ouvrir [`/demo`](https://sentinel-qhse.vercel.app/demo) pour explorer l’interface avec un administrateur et des données fictifs. Actions et commentaires sont conservés uniquement dans le navigateur; la bannière permet de les réinitialiser. Aucun compte réel ni contournement de connexion serveur n’est créé. Voir [les parcours et limites de la démonstration](docs/DEMO.md).

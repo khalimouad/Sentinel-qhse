@@ -1,6 +1,7 @@
 'use client';
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { api,ApiError } from '../lib/use-workspace';
+import { demoPath } from '../lib/demo.mjs';
 import PlatformCompanyLists from './PlatformCompanyLists';
 import type { PlatformAccount as Account,PlatformSite } from '../lib/platform-types';
 type Company={id:string;name:string;region:string;jurisdictions:string[]};
@@ -12,6 +13,8 @@ export default function PlatformAdmin(){
  const [list,setList]=useState<{items:Company[];total:number}>({items:[],total:0}),[detail,setDetail]=useState<Detail|null>(null);
  const [search,setSearch]=useState(''),[page,setPage]=useState(0),[form,setForm]=useState<FormKind|null>(null),[account,setAccount]=useState<Account|null>(null);
  const [loading,setLoading]=useState(true);
+ const [demo,setDemo]=useState(false);
+ useEffect(()=>setDemo(demoPath()),[]);
  const [accessState,setAccessState]=useState<'checking'|'allowed'|'login'|'forbidden'|'unavailable'>('checking');
  const [accessRetry,setAccessRetry]=useState(0);
  const [listsReload,setListsReload]=useState(0);
@@ -30,7 +33,7 @@ export default function PlatformAdmin(){
   }catch(e){if(alive.current&&request===generation.current)setError(failure(e));}finally{pending.current=false;if(alive.current)setBusy(false);}
  }
  const begin=(kind:FormKind,target:Account|null=null,site:PlatformSite|null=null)=>{if(!form||window.confirm('Abandonner la saisie non enregistrée ?')){setForm(kind);setAccount(target);setSelectedSite(site);setError('');}};
- return <main className="module-page documents-page platform-admin"><header className="module-header"><div><div className="eyebrow">ADMINISTRATION DE LA PLATEFORME</div><h1>Entreprises et comptes</h1><p>Gestion des organisations, des sites et des autorisations.</p></div><div className="document-commands"><a className="button button-outline" href="/">Espace QHSE</a><form method="post" action="/auth/logout"><button type="submit" className="button button-outline">Déconnexion</button></form></div></header>
+ return <main className="module-page documents-page platform-admin"><header className="module-header"><div><div className="eyebrow">ADMINISTRATION DE LA PLATEFORME</div><h1>Entreprises et comptes</h1><p>Gestion des organisations, des sites et des autorisations.</p></div><div className="document-commands"><a className="button button-outline" href={demo?'/demo':'/'}>Espace QHSE</a>{demo?<a className="button button-outline" href="/">Quitter la démo</a>:<form method="post" action="/auth/logout"><button type="submit" className="button button-outline">Déconnexion</button></form>}</div></header>
  {error&&<p role="alert" className="document-error">{error}</p>}{loading&&<p role="status">Vérification de l’accès…</p>}
  {!loading&&!allowed&&<section className="panel"><h2>{accessState==='unavailable'?'Service d’administration indisponible':accessState==='login'?'Connexion requise':'Accès non autorisé'}</h2><p>{accessState==='unavailable'?'La vérification de vos droits n’a pas pu être effectuée. Le service doit être disponible avant de pouvoir gérer les entreprises et les comptes.':accessState==='login'?'Connectez-vous avec votre compte administrateur de plateforme.':'Cet espace est réservé aux administrateurs de la plateforme. Le rôle administrateur d’une entreprise ne donne pas cet accès.'}</p><div className="document-commands">{accessState!=='unavailable'&&<a className="button button-primary" href="/auth/login?returnTo=admin">Se connecter</a>}<button type="button" className="button button-outline" onClick={()=>setAccessRetry(value=>value+1)}>Réessayer</button></div></section>}
  {allowed&&<><p className="report-privacy">Les comptes sont rattachés à une identité existante chez votre fournisseur de connexion. Aucun mot de passe n’est saisi ici. Gérer une entreprise ne donne pas accès à ses dossiers QHSE.</p><button type="button" className="button" disabled={busy} onClick={()=>begin('company')}>Créer une entreprise</button>

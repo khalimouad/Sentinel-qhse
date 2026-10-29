@@ -4,6 +4,7 @@ import type { Action, ActionList, AuditEvent, CreateAction, MeResponse, TenantSu
 
 export class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
 export async function api<T>(path: string,tenant?: string,options?: RequestInit): Promise<T> {
+  if(typeof window!=='undefined'&&(window.location.pathname==='/demo'||window.location.pathname.startsWith('/demo/'))){const {demoApi}=await import('./demo.mjs');return demoApi(path,tenant,options) as Promise<T>;}
   // Bound the entire request, including reading its response body. Component
   // cancellation still aborts silently through the caller's existing checks.
   const timeout=AbortSignal.timeout(path.startsWith('attachments/')&&path.endsWith('/confirm')?70000:25000);
