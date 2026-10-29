@@ -42,3 +42,11 @@ test('hosted PORT is used unless API_PORT is set',()=>{
   assert.equal(readConfig({...local,PORT:'12345',API_PORT:'12346'}).port,12346);
   assert.throws(()=>readConfig({...local,PORT:'not-a-port'}),/API_PORT/);
 });
+
+
+test('Supabase issuer cannot start without explicit MFA enforcement',()=>{
+  const supabase={NODE_ENV:'production',DATABASE_URL:local.DATABASE_URL,OIDC_ISSUER:'https://example.supabase.co/auth/v1',OIDC_AUDIENCE:'authenticated',OIDC_JWKS_URI:'https://example.supabase.co/auth/v1/.well-known/jwks.json'};
+  assert.throws(()=>readConfig(supabase),/AUTH_REQUIRE_MFA/);
+  assert.throws(()=>readConfig({...supabase,AUTH_REQUIRE_MFA:'false'}),/AUTH_REQUIRE_MFA/);
+  assert.equal(readConfig({...supabase,AUTH_REQUIRE_MFA:'true'}).requireMfa,true);
+});

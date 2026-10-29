@@ -17,6 +17,13 @@ export function readConfig(env = process.env) {
   }
   if (env.AUTH_REQUIRE_MFA && !['true','false'].includes(env.AUTH_REQUIRE_MFA)) throw new Error('AUTH_REQUIRE_MFA must be true or false.');
   const requireMfa = env.AUTH_REQUIRE_MFA === 'true';
+  // Supabase sessions must not be accepted at the first authentication factor.
+  if (!devAuth && env.OIDC_ISSUER) {
+    const issuer = new URL(env.OIDC_ISSUER);
+    if (issuer.hostname.endsWith('.supabase.co') && issuer.pathname.replace(/\/$/, '') === '/auth/v1' && !requireMfa) {
+      throw new Error('AUTH_REQUIRE_MFA=true is required for Supabase Auth.');
+    }
+  }
   const port = Number(env.API_PORT || env.PORT || 4000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid API_PORT.');
   let storage=null;
