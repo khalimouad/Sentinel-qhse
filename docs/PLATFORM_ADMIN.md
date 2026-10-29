@@ -4,7 +4,7 @@ L’écran `/admin` est distinct de l’espace QHSE. Il permet de créer les ent
 
 ## Mise en service
 
-1. Déployer l’API avec PostgreSQL et appliquer les migrations, dont `014_platform_admin.sql` et `015_platform_metadata.sql`, avec le propriétaire des migrations (`npm run db:migrate`). Le runtime reste `sentinelle_app`.
+1. Déployer l’API avec PostgreSQL et appliquer les migrations, dont `014_platform_admin.sql` et les suivantes, avec le propriétaire des migrations (`npm run db:migrate`). Le runtime reste `sentinelle_app`.
 2. Configurer le fournisseur OIDC de l’API et du web (voir `.env.example`). Créer le premier compte opérateur chez ce fournisseur. Le fournisseur reste responsable des mots de passe, MFA et récupération de compte.
 3. Dans une session d’exploitation disposant de `DATABASE_ADMIN_URL`, renseigner `PLATFORM_ADMIN_ISSUER`, `PLATFORM_ADMIN_SUBJECT` et `PLATFORM_ADMIN_NAME`. Utiliser les valeurs exactes `iss` et `sub` de cette identité. Exécuter `npm run platform:bootstrap`. Ne jamais transmettre `DATABASE_ADMIN_URL` au runtime web/API ni commettre ces variables.
 4. Se connecter au web, puis ouvrir `/admin`. Un opérateur sans appartenance à une entreprise voit un lien vers l’administration dans le message d’absence d’organisation. Le script ne lui donne aucun accès aux dossiers QHSE.
@@ -17,7 +17,7 @@ Le bootstrap est une opération réservée au propriétaire de la base. Aucun en
 - L’API vérifie l’identité cryptographique puis le registre privé des opérateurs à chaque requête `/platform/*`. Le rôle `admin` d’une entreprise ne suffit pas.
 - Les fonctions PostgreSQL de provisionnement vérifient elles-mêmes ce registre, ont un `search_path` vide et des signatures limitées. Le rôle runtime n’a pas de droits directs sur les tables d’identités, adhésions, habilitations plateforme ou journal d’administration.
 - L’administrateur plateforme consulte les entreprises, sites et adhésions via ces fonctions; il ne reçoit aucun droit global sur les documents, risques, signalements ou autres dossiers métier.
-- Chaque création ou modification des accès porte un motif et un événement attribué, daté et non modifiable, dans la même transaction que l’opération. Les valeurs avant/après des adhésions incluent les sites explicites. La fiche affiche les 50 derniers événements (le journal complet reste conservé).
+- Chaque création ou modification des accès porte un motif et un événement attribué, daté et non modifiable, dans la même transaction que l’opération. Les valeurs avant/après des adhésions incluent les sites explicites. L’historique est paginé et permet de consulter les valeurs avant/après des opérations autorisées.
 - Les modifications d’accès utilisent une révision attendue et sont sérialisées par entreprise. Les sites d’une autre entreprise sont refusés. Les appartenances sont conservées pour préserver les références historiques.
 - Une suspension désactive l’appartenance à une entreprise, pas le compte chez le fournisseur ni ses accès aux autres entreprises. Les fonctions d’appartenance, de rôle, d’accès aux sites, d’attribution et de sélection des responsables excluent les appartenances suspendues. L’effet s’applique aux nouvelles requêtes; une transaction déjà engagée ou une URL S3 temporaire déjà émise peut rester valable jusqu’à sa fin/expiration.
 - « Tous les sites » inclut les futurs sites de cette entreprise; une sélection explicite vide ne donne accès à aucun site.
@@ -26,7 +26,7 @@ Le bootstrap est une opération réservée au propriétaire de la base. Aucun en
 
 Le formulaire rattache les identités chez le fournisseur configuré : il ne crée pas les comptes chez ce fournisseur et n’envoie pas d’invitation. Les identifiants `sub` ne doivent pas être déduits des e-mails. Le rattachement via invitation et les connecteurs d’administration des fournisseurs restent à développer.
 
-Le catalogue des entreprises est paginé; la fiche charge tous ses sites et comptes et 50 événements. La pagination détaillée des très grandes entreprises reste à ajouter. La facturation et le changement des droits plateforme ne sont pas exposés dans cet écran.
+Les entreprises, comptes et événements disposent de listes paginées. Les sites de l’entreprise sont encore chargés ensemble pour les formulaires d’habilitation; la pagination de très grands parcs de sites reste à ajouter. La facturation et le changement des droits plateforme ne sont pas exposés dans cet écran.
 
 Les builds API et web du lot initial d’administration ont réussi sur Vercel. Les migrations nécessitent encore leur exécution réelle et la vérification de l’isolation, de la suspension et des parcours navigateur avec un fournisseur OIDC. Aucun test supplémentaire n’a été exécuté pour ce lot.
 
@@ -37,3 +37,13 @@ La migration `015_platform_metadata.sql` ajoute des révisions distinctes aux en
 Les routes `POST /platform/companies/:id/metadata` et `POST /platform/companies/:id/sites/:siteId/metadata` appellent une fonction PostgreSQL limitée qui vérifie le rôle plateforme, verrouille d’abord l’entreprise puis le site, contrôle la révision et journalise les valeurs avant/après dans la même transaction. Aucun droit direct UPDATE sur les entreprises/sites n’est accordé au runtime. Un site d’une autre entreprise est introuvable dans cette route.
 
 Le changement ne touche ni les identifiants, ni les appartenances, ni les accès aux sites. Les snapshots historiques déjà enregistrés conservent leurs noms d’origine. La région de référence reste descriptive; la modifier ne déplace pas les données. Les juridictions enregistrées ne recalculent pas automatiquement les obligations réglementaires.
+
+## Recherche des comptes et historique paginé
+
+La migration `016_platform_lists.sql` sépare les comptes et l’historique de la fiche d’entreprise. La fiche ne renvoie plus tous ses comptes ni ses événements, mais leurs compteurs et les sites nécessaires aux formulaires. Les routes `GET /platform/companies/:id/accounts` et `GET /platform/companies/:id/history` renvoient `items` et `total` avec des pages de 25 dans l’interface (limite API de 100, offset maximal de 100000).
+
+Les comptes sont recherchés par nom/identifiant du fournisseur et filtrés par rôle et accès actif/suspendu. L’historique se filtre par opération et par motif/nom d’opérateur. La recherche est littérale, insensible à la casse. Les compteurs portent sur tout le résultat filtré. L’ordre est déterministe (nom/UUID pour les comptes, date/UUID descendants pour les événements). Chaque liste a son chargement, erreur et bouton de reprise; les requêtes sont annulées lors d’un changement de périmètre et les filtres sont conservés après enregistrement.
+
+Les fonctions PostgreSQL vérifient le registre privé des opérateurs avant de consulter une entreprise; aucun droit de lecture directe des identités ou journaux n’est accordé au runtime. Les données avant/après sont chargées uniquement pour la page d’événements demandée. Le panneau expose leurs champs utiles avec des libellés métier. Les noms de sites associés aux UUID d’anciens droits sont résolus avec les noms actuels et sont indiqués comme tels; les valeurs persistées du journal ne sont pas réécrites.
+
+La pagination par offset ne constitue pas un export figé : une opération concurrente peut déplacer des lignes entre pages. Les journaux restent intégralement conservés dans la base; l’export complet et la navigation au-delà de la limite d’offset restent à développer. L’exécution de la migration et la vérification des périmètres restent à effectuer sur PostgreSQL.

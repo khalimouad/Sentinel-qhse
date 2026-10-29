@@ -38,3 +38,11 @@ export class CompanyMetadataDto extends CompanyDto {
 export class SiteMetadataDto extends PlatformSiteDto {
  @IsInt() @Min(1) revision!:number;
 }
+
+export class PlatformAccountQuery extends PlatformQuery {
+ @IsIn(['all','admin','manager','reader']) role='all';
+ @IsIn(['all','active','suspended']) status='all';
+}
+export class PlatformHistoryQuery extends PlatformQuery {
+ @IsIn(['all','company','site','account','access','company_metadata','site_metadata']) operation='all';
+}

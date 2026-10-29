@@ -168,3 +168,7 @@ La procédure d’amorçage et les limites sont documentées dans `docs/PLATFORM
 ## Administration — modification des entreprises et sites
 
 La migration `015_platform_metadata.sql` et les formulaires de `/admin` permettent de modifier les métadonnées des entreprises/sites avec motif, révision attendue et journal avant/après atomique. Les verrous suivent l’ordre entreprise puis site et la fonction refuse un site extérieur à l’entreprise sélectionnée. Les droits plateforme restent distincts des droits métier. La migration et les conflits concurrents restent à valider dans PostgreSQL.
+
+## Administration — recherche des comptes et historique paginé
+
+La migration `016_platform_lists.sql` remplace les comptes et événements embarqués dans la fiche par deux listes indépendantes avec compteurs complets, recherche et filtres. L’interface affiche 25 lignes par page, conserve les filtres après les mutations et permet de consulter les valeurs avant/après de l’historique. Les fonctions SQL sont réservées aux opérateurs plateforme et ne donnent pas accès aux dossiers métier. Les sites restent chargés ensemble pour les habilitations. Exécution PostgreSQL et vérifications d’isolation restent nécessaires.
