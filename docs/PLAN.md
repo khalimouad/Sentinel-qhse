@@ -134,6 +134,14 @@ Les évaluations sont humaines et nominatives, avec statut, conclusion/applicabi
 
 Les sources ne sont ni téléchargées ni inventées par l’application. Versionnement structuré/amendements, liens aux actions, pièces de preuve, connecteurs officiels, rappels, retrait de vérification et propositions IA restent à développer après choix des pays et sources. Les champs de version servent de citation explicite, sans prétendre à une base réglementaire exhaustive. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent; aucun test ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur restent à effectuer.
 
+### Obligations : actions de traitement et invalidation de l’évaluation
+
+La migration `013_obligation_actions.sql` relie les obligations au plan commun. Une référence active et vérifiée peut recevoir des actions attribuées à des responsables habilités du site. La fiche expose consultation paginée, compteur complet des actions ouvertes, clôture/réouverture et commentaires. Les notifications orientent aussi vers l’obligation et l’action concernées. Une contrainte limite chaque action à une origine unique parmi signalement, risque et obligation; les FKs et politiques d’accès propagent le périmètre tenant/site/obligation aux vues transversales.
+
+Une action ajoutée ou rouverte remet l’évaluation à effectuer et, si nécessaire, réactive une obligation archivée, dans la même transaction. La référence vérifiée demeure inchangée et la décision antérieure reste au journal. La clôture d’actions ne produit aucun verdict de conformité. Une conclusion conforme/non applicable et l’archivage exigent l’absence d’action ouverte, en plus des contrôles humains déjà présents. Les changements d’action incrémentent la révision de l’obligation; les écritures obsolètes sont refusées par l’API.
+
+La synchronisation interne utilise des colonnes non modifiables par le runtime et un déclencheur étroit, sans permettre au client de réécrire une évaluation. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent. Aucun test ajouté ou exécuté; compilation, migration et recette PostgreSQL/navigateur restent ouvertes.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).

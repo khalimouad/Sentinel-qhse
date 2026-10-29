@@ -1,9 +1,10 @@
 import { BadRequestException,ConflictException,ForbiddenException,Injectable,NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { Obligation,ObligationList,ReportEvent } from '@sentinelle/contracts';
+import type { Action,ObligationActionList,Obligation,ObligationList,ReportEvent } from '@sentinelle/contracts';
 import type { Principal } from '../auth.js';
+import { actionColumns,actionJoins } from '../actions/action-query.js';
 import { Database,type TenantSession } from '../database.js';
-import { AssessObligationDto,CreateObligationDto,ObligationDecisionDto,ObligationQuery } from './dto.js';
+import { AssessObligationDto,CreateObligationDto,ObligationActionDto,ObligationActionQuery,ObligationDecisionDto,ObligationQuery } from './dto.js';
 const columns=`o.id,o.site_id AS "siteId",s.name AS "siteName",o.title,o.jurisdiction,o.source_title AS "sourceTitle",o.source_version AS "sourceVersion",
   o.article,o.source_url AS "sourceUrl",o.excerpt,o.source_sha256 AS "sourceSha256",o.owner_id AS "ownerId",o.created_by AS "createdBy",o.next_review_on::text AS "nextReviewOn",
   (o.lifecycle='active' AND o.next_review_on<(statement_timestamp() AT TIME ZONE 'UTC')::date) AS "reviewOverdue",o.lifecycle,o.source_status AS "sourceStatus",
@@ -31,6 +32,28 @@ export class ObligationsService {
   private async owner(session:TenantSession,siteId:string,ownerId:string){
     const result=await session.db.query('SELECT identity.can_review_site($1,$2,$3) AS allowed',[session.tenant.id,siteId,ownerId]);
     if(!result.rows[0].allowed)throw new BadRequestException('Le responsable doit être habilité sur ce site.');
+  }
+  private async hasOpenActions(session:TenantSession,id:string){
+    const {rows}=await session.db.query("SELECT EXISTS(SELECT 1 FROM app.actions WHERE tenant_id=$1 AND obligation_id=$2 AND status='open') AS has_open",[session.tenant.id,id]);
+    return rows[0].has_open as boolean;
+  }
+  actions(principal:Principal,tenant:string|undefined,id:string,query:ObligationActionQuery):Promise<ObligationActionList>{
+    return this.database.withTenant(principal,tenant,async session=>{
+      await this.get(session,id);
+      const count=await session.db.query("SELECT count(*)::int AS total,count(*) FILTER(WHERE status='open')::int AS open_count FROM app.actions WHERE tenant_id=$1 AND obligation_id=$2",[session.tenant.id,id]);
+      const {rows}=await session.db.query<Action>(`SELECT ${actionColumns} ${actionJoins} WHERE a.tenant_id=$1 AND a.obligation_id=$2 ORDER BY a.created_at DESC,a.id DESC LIMIT $3 OFFSET $4`,[session.tenant.id,id,query.limit,query.offset]);
+      return {items:rows,total:count.rows[0].total,open:count.rows[0].open_count};
+    });
+  }
+  addAction(principal:Principal,tenant:string|undefined,id:string,input:ObligationActionDto){
+    return this.database.withTenant(principal,tenant,async session=>{
+      const obligation=await this.lock(session,id,input.revision);
+      if(obligation.lifecycle!=='active'||obligation.sourceStatus!=='verified')throw new ConflictException('L’action nécessite une obligation active dont la référence est vérifiée.');
+      await this.owner(session,obligation.siteId,input.ownerId);
+      await session.db.query(`INSERT INTO app.actions(id,tenant_id,site_id,owner_id,title,origin,priority,due_date,obligation_id)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[randomUUID(),session.tenant.id,obligation.siteId,input.ownerId,input.title,`Obligation · ${id.slice(0,8)}`,input.priority,input.dueDate||null,id]);
+      return this.get(session,id);
+    });
   }
   list(principal:Principal,tenant:string|undefined,query:ObligationQuery):Promise<ObligationList>{
     return this.database.withTenant(principal,tenant,async session=>{
@@ -70,6 +93,7 @@ export class ObligationsService {
         await session.db.query("UPDATE app.obligations SET source_status='verified',verification_note=$3,last_change_note=$3 WHERE tenant_id=$1 AND id=$2",[session.tenant.id,id,input.note]);
       }else{
         const lifecycle=input.command==='archive'?'archived':'active';
+        if(input.command==='archive'&&await this.hasOpenActions(session,id))throw new BadRequestException('Terminez les actions de traitement avant d’archiver l’obligation.');
         if(obligation.lifecycle===lifecycle)throw new ConflictException('Ce changement d’état a déjà été effectué.');
         await session.db.query('UPDATE app.obligations SET lifecycle=$3,last_change_note=$4 WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id,lifecycle,input.note]);
       }
@@ -81,6 +105,7 @@ export class ObligationsService {
       const obligation=await this.lock(session,id,input.revision);
       if(obligation.lifecycle!=='active'||obligation.sourceStatus!=='verified')throw new ConflictException('Vérifiez la référence et rouvrez l’obligation avant de l’évaluer.');
       await this.owner(session,obligation.siteId,input.ownerId);
+      if(['compliant','not_applicable'].includes(input.status)&&await this.hasOpenActions(session,id))throw new BadRequestException('Terminez les actions liées avant de conclure à la conformité ou à la non-applicabilité.');
       const date=await session.db.query('SELECT $1::date>=(statement_timestamp() AT TIME ZONE \'UTC\')::date AS valid',[input.nextReviewOn]);
       if(!date.rows[0].valid)throw new BadRequestException('La prochaine revue ne peut pas être déjà dépassée.');
       await session.db.query(`UPDATE app.obligations SET assessment_status=$3,assessment_note=$4,evidence_reference=$5,owner_id=$6,next_review_on=$7,last_change_note=$4

@@ -36,3 +36,15 @@ export class ObligationQuery {
   @ApiPropertyOptional({default:25}) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;
   @ApiPropertyOptional({default:0}) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
 }
+
+export class ObligationActionDto {
+  @ApiProperty() @IsInt() @Min(1) revision!:number;
+  @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(500) title!:string;
+  @ApiProperty({format:'uuid'}) @IsUUID() ownerId!:string;
+  @ApiProperty({enum:['normal','high']}) @IsIn(['normal','high']) priority!:'normal'|'high';
+  @ApiPropertyOptional({format:'date'}) @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({strict:true}) dueDate?:string;
+}
+export class ObligationActionQuery {
+  @ApiPropertyOptional({default:25}) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;
+  @ApiPropertyOptional({default:0}) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
+}
