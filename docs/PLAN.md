@@ -1,4 +1,4 @@
-# Revue du plan — mise à jour du 28 octobre 2026
+# Revue du plan — mise à jour du 29 octobre 2026
 
 ## Décisions confirmées
 
@@ -92,12 +92,20 @@ Les nouveaux démarrages exigent une qualification non révoquée couvrant la p�
 
 Aucune qualification n’est préchargée dans les fixtures. Deux personnes habilitées distinctes sont nécessaires pour l’attribution. Pièces justificatives binaires, contrôle d’authenticité/accréditation, équipe d’auditeurs, suspension/remplacement en cours de mission et relances restent à développer. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent. Aucun test ajouté ou exécuté; compilation, migration et recette PostgreSQL/navigateur restent ouvertes.
 
+### Socle partagé : commentaires de suivi des actions — 29 octobre
+
+La migration `009_action_comments.sql` ajoute des commentaires attribués, horodatés et non modifiables sur les actions du plan commun. L’API expose consultation paginée et ajout; le dialogue partagé est accessible depuis l’historique du plan d’actions et les actions correctives des signalements. Les managers/admins habilités ajoutent les commentaires; les lecteurs consultent uniquement ceux des actions déjà visibles dans leur périmètre. Les politiques reprennent aussi la confidentialité du signalement parent.
+
+Les reprises du même envoi utilisent une clé d’idempotence par tenant/action/auteur; un contenu différent sous la même clé est refusé. Aucun droit UPDATE/DELETE sur les commentaires n’est accordé au rôle applicatif, et un déclencheur protège leur conservation. L’ajout ne modifie ni la version ni le statut de l’action, et ne remplace pas une preuve de vérification d’efficacité.
+
+Notifications, mentions, fichiers joints, extension aux autres objets et export/rétention complets restent ouverts. L’installation des dépendances a encore échoué sur un refus de connexion réseau de l’environnement. Les contrôles de syntaxe Node des services/contrats compatibles et des espaces Git passent; aucun test ajouté ou exécuté. Compilation, migration et recette PostgreSQL/navigateur restent à effectuer.
+
 ### Prochaines étapes actualisées
 
 Le code et le workflow de vérification sont publiés sur `khalimouad/Sentinel-qhse`, branche `main`. Le workflow inclut PostgreSQL 17, migrations, fixtures, tests métier, vérification des types, build et tests d’isolation/HTTP. Son premier lancement n’a exécuté aucune étape et n’a reçu aucun runner; la vérification reste ouverte. Le snapshot importé est identique au dépôt local (empreinte de l’arbre Git contrôlée).
 
 1. Terminer la recette de cette fondation : exécuter le build, les tests d’isolation et le parcours navigateur; connecter un fournisseur OIDC de test et produire le lockfile.
-2. Compléter le socle partagé : terminer la recette documentaire, des signalements et fichiers privés, puis compléter les audits, risques, commentaires et file de notifications; définir le scan et la conservation des fichiers avant exploitation.
+2. Compléter le socle partagé : terminer la recette documentaire, des signalements et fichiers privés, puis compléter les audits, risques et file de notifications, puis étendre les commentaires aux autres objets; définir le scan et la conservation des fichiers avant exploitation.
 3. Registre des obligations : textes et versions, articles, preuves, responsables, évaluations et décisions humaines; commencer avec des sources vérifiées pour les pays choisis.
 4. Anticorruption : tiers, cadeaux/conflits, alertes anonymes et enquêtes avec une politique d’accès distincte. Les droits du socle ne doivent pas donner accès aux enquêtes.
 5. Agent de veille : ingestion par source/pays, extraction et recherche sourcée, suivi des versions, validation humaine, évaluations sur corpus contrôlé avant mise en service.

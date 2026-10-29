@@ -3,6 +3,8 @@ import { readConfig } from './config.mjs';
 import { CONFIG, IdentityGuard } from './auth.js';
 import { Database } from './database.js';
 import { WorkspaceController } from './workspace.controller.js';
+import { ActionCommentsController } from './actions/comments.controller.js';
+import { ActionCommentsService } from './actions/comments.service.js';
 import { ActionsController } from './actions/actions.controller.js';
 import { ActionsService } from './actions/actions.service.js';
 import { DocumentsController } from './documents/documents.controller.js';
@@ -25,7 +27,7 @@ class HealthController {
   @Get() healthy() { return this.database.healthy(); }
 }
 @Module({
-  controllers: [HealthController,WorkspaceController,ActionsController,DocumentsController,ReportsController,AttachmentsController,AuditsController,AuditTemplatesController,AuditorQualificationsController],
-  providers: [{ provide: CONFIG, useFactory: () => readConfig() },Database,IdentityGuard,ActionsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService,AuditorQualificationsService],
+  controllers: [HealthController,WorkspaceController,ActionsController,ActionCommentsController,DocumentsController,ReportsController,AttachmentsController,AuditsController,AuditTemplatesController,AuditorQualificationsController],
+  providers: [{ provide: CONFIG, useFactory: () => readConfig() },Database,IdentityGuard,ActionsService,ActionCommentsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService,AuditorQualificationsService],
 })
 export class AppModule {}

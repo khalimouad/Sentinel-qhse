@@ -4,6 +4,7 @@ import { Check,Clock3,Plus,Search,ShieldCheck,X } from 'lucide-react';
 import type { Action,Report,ReportCommand,ReportDetail,ReportEvent,ReportKind,ReportStatus,WorkspaceContext } from '@sentinelle/contracts';
 import { api } from '../lib/use-workspace';
 import AttachmentsPanel from './AttachmentsPanel';
+import ActionDiscussion from './ActionDiscussion';
 
 const kinds:Record<ReportKind,string>={ incident:'Incident',near_miss:'Presque-accident',nonconformity:'Non-conformité',complaint:'Réclamation' };
 const states:Record<ReportStatus,string>={ reported:'Déclaré',in_analysis:'En analyse',action_plan:'Plan d’actions',effectiveness_review:'Vérification d’efficacité',closed:'Clôturé' };
@@ -22,6 +23,7 @@ export default function ReportsPage({ context,siteName,onActionsChanged,initialR
   const [error,setError]=useState('');
   const [form,setForm]=useState<'report'|'action'|null>(null);
   const [history,setHistory]=useState<ReportEvent[]|null>(null);
+  const [discussion,setDiscussion]=useState<{id:string;title:string}|null>(null);
   const selection=useRef(0);
   const listScope=useRef('');
   listScope.current=`${tenant}|${siteName}|${search}|${status}`;
@@ -42,7 +44,7 @@ export default function ReportsPage({ context,siteName,onActionsChanged,initialR
     const timer=setTimeout(()=>{ void loadList(controller.signal).catch(e=>{if(!controller.signal.aborted) setError(errorMessage(e));}).finally(()=>{if(!controller.signal.aborted) setLoading(false);}); },200);
     return()=>{clearTimeout(timer);controller.abort();};
   },[loadList]);
-  useEffect(()=>{selection.current++;setDetail(null);setHistory(null);setForm(null);setAnalysisDirty(false);},[siteName]);
+  useEffect(()=>{selection.current++;setDetail(null);setHistory(null);setForm(null);setAnalysisDirty(false);setDiscussion(null);},[siteName]);
   useEffect(()=>()=>{selection.current++;},[]);
   const openReport=useCallback(async(id:string)=>{
     const request=++selection.current;setError('');setHistory(null);setDetail(null);setAnalysisDirty(false);
@@ -121,13 +123,14 @@ export default function ReportsPage({ context,siteName,onActionsChanged,initialR
             {context.canWrite&&report.status==='closed'&&<button className="button" disabled={pending||fileBusy} onClick={()=>void decide('reopen')}>Rouvrir le signalement</button>}
             <button className="button" disabled={pending||fileBusy} onClick={()=>{const request=selection.current;void api<ReportEvent[]>(`reports/${report.id}/history`,tenant).then(events=>{if(request===selection.current)setHistory(events);}).catch(e=>{if(request===selection.current)setError(errorMessage(e));});}}><Clock3 size={14}/> Historique</button>
           </div>
-          <section className="report-linked-actions"><h3>Actions liées au plan unique <span>{detail.actions.length}</span></h3>{detail.actions.length?detail.actions.map(action=><div key={action.id}><button className={`check-action ${action.status==='closed'?'checked':''}`} disabled={!context.canWrite||pending||fileBusy||analysisDirty} aria-label={action.status==='open'?'Clôturer l’action':'Rouvrir l’action'} onClick={()=>void toggleAction(action)}>{action.status==='closed'&&<Check size={13}/>}</button><span><b>{action.title}</b><small>{action.ownerName} · {action.dueDate||'Échéance non définie'}</small></span><em>{action.status==='closed'?'Clôturée':'En cours'}</em></div>):<p>Aucune action corrective liée pour le moment.</p>}</section>
+          <section className="report-linked-actions"><h3>Actions liées au plan unique <span>{detail.actions.length}</span></h3>{detail.actions.length?detail.actions.map(action=><div key={action.id}><button className={`check-action ${action.status==='closed'?'checked':''}`} disabled={!context.canWrite||pending||fileBusy||analysisDirty} aria-label={action.status==='open'?'Clôturer l’action':'Rouvrir l’action'} onClick={()=>void toggleAction(action)}>{action.status==='closed'&&<Check size={13}/>}</button><span><b>{action.title}</b><small>{action.ownerName} · {action.dueDate||'Échéance non définie'}</small></span><em>{action.status==='closed'?'Clôturée':'En cours'}</em><button type="button" className="button button-outline" disabled={pending||fileBusy} onClick={()=>setDiscussion({id:action.id,title:action.title})}>Commentaires</button></div>):<p>Aucune action corrective liée pour le moment.</p>}</section>
           {report.effectivenessNote&&<div className="document-decision-note"><b>{report.effectiveness==='effective'?'Efficacité confirmée':'Efficacité non démontrée'}</b><p>{report.effectivenessNote}</p><small>{name(report.reviewedBy)} · {report.reviewedAt&&new Date(report.reviewedAt).toLocaleString('fr-FR')}</small></div>}
           <div className="document-evidence"><span>Empreinte des pièces jointes</span><code>{report.attachmentsSha256}</code></div>
           {history&&<div className="document-history"><h3>Historique du signalement</h3>{history.map(event=><div key={event.id}><b>{event.operation==='INSERT'?'Signalement déclaré':String(event.after.last_change_note||'Traitement mis à jour')}</b><span>{name(event.actorId)} · {new Date(event.occurredAt).toLocaleString('fr-FR')}</span></div>)}</div>}
         </>}
       </section>
     </div>
+    {discussion&&<ActionDiscussion key={discussion.id} context={context} actionId={discussion.id} title={discussion.title} onClose={()=>setDiscussion(null)}/>}
     {form&&<div className="modal-backdrop"><form className="modal document-form" role="dialog" aria-modal="true" aria-labelledby="report-form-title" onSubmit={e=>{
       e.preventDefault();const values=new FormData(e.currentTarget);
       if(form==='report')void mutate('reports',{title:String(values.get('title')),description:String(values.get('description')),siteId:String(values.get('siteId')),kind:String(values.get('kind')),severity:String(values.get('severity')),occurredAt:new Date(String(values.get('occurredAt'))).toISOString(),correction:String(values.get('correction')),currency:String(values.get('currency'))});

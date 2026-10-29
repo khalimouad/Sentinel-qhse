@@ -127,3 +127,8 @@ export interface AuditorQualificationProof {
   evidenceReference:string; assessment:string; assessedBy:string; assessorName?:string; auditorName?:string;
   issuedAt:string; checkedAt:string;
 }
+
+export interface ActionComment {
+  id:string; actionId:string; authorId:string; authorName:string; body:string; createdAt:string;
+}
+export interface ActionCommentList { items:ActionComment[]; total:number }
