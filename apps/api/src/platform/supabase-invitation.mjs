@@ -24,7 +24,7 @@ export function createInvitationProvider({url,serviceKey,redirectUrl,fetchImpl=f
     }
     try{
       const data=await response.json();
-      if(typeof data.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.id))return {status:'uncertain'};
+      if(typeof data.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.id)||typeof data.email!=='string'||data.email.trim().toLowerCase()!==email.trim().toLowerCase())return {status:'uncertain'};
       return {status:'confirmed',subject:data.id};
     }catch{return {status:'uncertain'};}
   };
