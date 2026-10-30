@@ -2,7 +2,7 @@ import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Quer
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { IdentityGuard, type AuthenticatedRequest } from '../auth.js';
 import { DocumentsService } from './documents.service.js';
-import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto } from './dto.js';
+import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery } from './dto.js';
 
 @ApiTags('Documents') @ApiBearerAuth() @ApiHeader({ name: 'X-Tenant-Id',required: true })
 @Controller('documents') @UseGuards(IdentityGuard)
@@ -15,5 +15,6 @@ export class DocumentsController {
   @Patch(':id/versions/:versionId') edit(@Req() req: AuthenticatedRequest,@Headers('x-tenant-id') tenant: string|undefined,@Param('id',new ParseUUIDPipe()) id: string,@Param('versionId',new ParseUUIDPipe()) version: string,@Body() input: EditVersionDto) { return this.documents.edit(req.principal,tenant,id,version,input); }
   @Post(':id/versions/:versionId/decisions') decide(@Req() req: AuthenticatedRequest,@Headers('x-tenant-id') tenant: string|undefined,@Param('id',new ParseUUIDPipe()) id: string,@Param('versionId',new ParseUUIDPipe()) version: string,@Body() input: DecideVersionDto) { return this.documents.decide(req.principal,tenant,id,version,input); }
   @Post(':id/versions/:versionId/acknowledgements') acknowledge(@Req() req: AuthenticatedRequest,@Headers('x-tenant-id') tenant: string|undefined,@Param('id',new ParseUUIDPipe()) id: string,@Param('versionId',new ParseUUIDPipe()) version: string) { return this.documents.acknowledge(req.principal,tenant,id,version); }
+  @Get(':id/versions/:versionId/acknowledgements') receipts(@Req() req: AuthenticatedRequest,@Headers('x-tenant-id') tenant: string|undefined,@Param('id',new ParseUUIDPipe()) id: string,@Param('versionId',new ParseUUIDPipe()) version: string,@Query() query: ReceiptQuery) { return this.documents.receipts(req.principal,tenant,id,version,query); }
   @Get(':id/history') history(@Req() req: AuthenticatedRequest,@Headers('x-tenant-id') tenant: string|undefined,@Param('id',new ParseUUIDPipe()) id: string) { return this.documents.history(req.principal,tenant,id); }
 }

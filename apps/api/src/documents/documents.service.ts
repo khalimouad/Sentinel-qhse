@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { DocumentDetail, DocumentEvent, DocumentList, DocumentSummary, DocumentVersion } from '@sentinelle/contracts';
 import { Database, type TenantSession } from '../database.js';
 import type { Principal } from '../auth.js';
-import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, VersionInput } from './dto.js';
+import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, VersionInput } from './dto.js';
 import { decideDocument, DocumentWorkflowError, validateParticipants } from './workflow.mjs';
 
 const documentColumns = `d.id,d.code,d.title,d.site_id AS "siteId",s.name AS "siteName",d.last_version AS "lastVersion",v.status,d.updated_at AS "updatedAt"`;
@@ -123,6 +123,23 @@ export class DocumentsService {
       if (result.rows[0].status!=='published') throw new ConflictException('Seule la version publiée peut être accusée de lecture.');
       await session.db.query(`INSERT INTO app.document_receipts(tenant_id,site_id,version_id,user_id) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`,[session.tenant.id,result.rows[0].site_id,versionId,session.actor.id]);
       return this.detailIn(session,id);
+    });
+  }
+  receipts(principal: Principal,tenant: string|undefined,id: string,versionId: string,query: ReceiptQuery) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.write(session);
+      const version=await session.db.query<{siteId:string;status:string}>(`SELECT site_id AS "siteId",status FROM app.document_versions
+        WHERE tenant_id=$1 AND document_id=$2 AND id=$3`,[session.tenant.id,id,versionId]);
+      if(!version.rows[0])throw new NotFoundException('Version introuvable.');
+      const allowed=await session.db.query('SELECT identity.can_write_site($1,$2) AS allowed',[session.tenant.id,version.rows[0].siteId]);
+      if(!allowed.rows[0].allowed)throw new ForbiddenException('Vous ne pouvez pas consulter les lectures de ce site.');
+      if(!['published','archived'].includes(version.rows[0].status))throw new ConflictException('Cette version n’a pas été publiée.');
+      const args=[session.tenant.id,versionId];
+      const count=await session.db.query('SELECT count(*)::int AS total FROM app.document_receipts WHERE tenant_id=$1 AND version_id=$2',args);
+      const result=await session.db.query(`SELECT r.user_id AS "userId",u.name AS "userName",r.acknowledged_at AS "acknowledgedAt"
+        FROM app.document_receipts r LEFT JOIN identity.list_members($1) u ON u.id=r.user_id
+        WHERE r.tenant_id=$1 AND r.version_id=$2 ORDER BY r.acknowledged_at DESC,r.user_id LIMIT $3 OFFSET $4`,[...args,query.limit,query.offset]);
+      return {items:result.rows,total:count.rows[0].total};
     });
   }
   history(principal: Principal,tenant: string|undefined,id: string): Promise<DocumentEvent[]> {

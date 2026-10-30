@@ -73,3 +73,7 @@ Les cibles de délais et de performance sont des objectifs de recette, pas des r
 ## Avancement technique — SOC-05
 
 Le dossier de signalement inclut les 5 pourquoi et six familles Ishikawa, enregistrées avec la révision et le journal du dossier. Le cycle de non-conformité avec analyse, actions et vérification indépendante a été exercé par tests API/PostgreSQL locaux, y compris le contrôle de version et la validation des champs. Une recette navigateur, les preuves sur l'environnement pilote avec identités réelles et le parcours complet de réclamation restent nécessaires : l'exigence n'est pas encore validée.
+
+## Avancement technique — SOC-01
+
+Le registre documentaire est paginé ; les responsables du site peuvent consulter les confirmations horodatées d'une version publiée ou archivée. Un test API/PostgreSQL local couvre publication, confirmation idempotente et restriction des accès. La diffusion ciblée, les relances, la signature et la recette navigateur restent à réaliser ; l'exigence reste non validée.

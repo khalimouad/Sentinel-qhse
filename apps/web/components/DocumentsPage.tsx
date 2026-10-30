@@ -11,6 +11,8 @@ const message = (error: unknown) => error instanceof Error ? error.message : 'Un
 
 export default function DocumentsPage({ context,siteName }: { context: WorkspaceContext; siteName: string }) {
   const [documents,setDocuments] = useState<DocumentSummary[]>([]);
+  const [page,setPage] = useState(0);
+  const [total,setTotal] = useState(0);
   const [detail,setDetail] = useState<DocumentDetail | null>(null);
   const [selectedVersion,setSelectedVersion] = useState('');
   const [search,setSearch] = useState('');
@@ -22,21 +24,22 @@ export default function DocumentsPage({ context,siteName }: { context: Workspace
   const [content,setContent] = useState('');
   const [draftSite,setDraftSite] = useState(context.sites.find(site=>site.name===siteName)?.id || context.sites[0]?.id || '');
   const [history,setHistory] = useState<DocumentEvent[] | null>(null);
+  const [receipts,setReceipts] = useState<{items:{userId:string;userName:string|null;acknowledgedAt:string}[];total:number;offset:number}|null>(null);
   const selection = useRef(0);
   const listScope=useRef('');
   const tenant = context.tenant.id;
-  listScope.current=`${tenant}|${siteName}|${search}`;
+  listScope.current=`${tenant}|${siteName}|${search}|${page}`;
   const version = detail?.versions.find(item=>item.id===selectedVersion) || detail?.versions[0];
   const eligibleReviewers = (context.documentReviewers[form==='version' ? detail?.document.siteId || '' : draftSite] || []).filter(member=>member.id!==context.actor.id);
   const name = (id: string) => context.members.find(member=>member.id===id)?.name || 'Membre autorisé';
   const loadList = useCallback(async (signal?: AbortSignal) => {
-    const scope=`${tenant}|${siteName}|${search}`;
-    const params = new URLSearchParams({ search,limit: '100' });
+    const scope=`${tenant}|${siteName}|${search}|${page}`;
+    const params = new URLSearchParams({ search,limit: '25',offset: String(page*25) });
     const site = context.sites.find(item=>item.name===siteName);
     if (site) params.set('siteId',site.id);
-    const result = await api<{ items: DocumentSummary[] }>(`documents?${params}`,tenant,{ signal });
-    if (!signal?.aborted&&listScope.current===scope) setDocuments(result.items);
-  },[tenant,siteName,search,context.sites]);
+    const result = await api<{ items: DocumentSummary[]; total: number }>(`documents?${params}`,tenant,{ signal });
+    if (!signal?.aborted&&listScope.current===scope) { setDocuments(result.items);setTotal(result.total);if(page>0&&page*25>=result.total)setPage(Math.max(0,Math.ceil(result.total/25)-1)); }
+  },[tenant,siteName,search,page,context.sites]);
   useEffect(()=>{
     const controller = new AbortController();
     setLoading(true); setError('');
@@ -44,12 +47,12 @@ export default function DocumentsPage({ context,siteName }: { context: Workspace
     return ()=>{ clearTimeout(timer); controller.abort(); };
   },[loadList]);
   useEffect(()=>{ setContent(version?.content || ''); },[version?.id,version?.revision,version?.content]);
-  useEffect(()=>{ selection.current++; setDetail(null); setHistory(null); setForm(null); },[siteName]);
+  useEffect(()=>{ selection.current++; setDetail(null); setHistory(null); setReceipts(null); setForm(null); setPage(0); },[siteName]);
   useEffect(()=>()=>{ selection.current++; },[]);
 
   async function openDocument(id: string) {
     const request = ++selection.current;
-    setError(''); setHistory(null); setDetail(null);
+    setError(''); setHistory(null); setReceipts(null); setDetail(null);
     try {
       const saved = await api<DocumentDetail>(`documents/${id}`,tenant);
       if (request===selection.current) { setDetail(saved); setSelectedVersion(saved.versions[0]?.id || ''); }
@@ -60,7 +63,7 @@ export default function DocumentsPage({ context,siteName }: { context: Workspace
     const request=++selection.current;setPending(true); setError('');
     try {
       const saved = await api<DocumentDetail>(path,tenant,{ method,body: JSON.stringify(input) });
-      if(request===selection.current){setDetail(saved);setSelectedVersion(saved.versions[0]?.id||'');setForm(null);setHistory(null);await loadList().catch(()=>setError('Enregistrement effectué. Actualisez la liste.'));}
+      if(request===selection.current){setDetail(saved);setSelectedVersion(saved.versions[0]?.id||'');setForm(null);setHistory(null);setReceipts(null);await loadList().catch(()=>setError('Enregistrement effectué. Actualisez la liste.'));}
     } catch (e) {
       if(request!==selection.current)return;
       if (detail) {
@@ -88,20 +91,27 @@ export default function DocumentsPage({ context,siteName }: { context: Workspace
     catch (e) { if(request===selection.current)setError(message(e)); }
   }
 
+  async function showReceipts(offset=0) {
+    if(!detail||!version)return;
+    const request=selection.current;setPending(true);setError('');
+    try {const result=await api<{items:{userId:string;userName:string|null;acknowledgedAt:string}[];total:number}>(`documents/${detail.document.id}/versions/${version.id}/acknowledgements?limit=25&offset=${offset}`,tenant);if(request===selection.current)setReceipts({...result,offset});}
+    catch(e){if(request===selection.current)setError(message(e));}finally{setPending(false);}
+  }
+
   return <div className="module-page documents-page">
     <div className="module-header"><div><div className="eyebrow"><span className="live-dot" /> SOCLE COMMUN · GESTION DOCUMENTAIRE</div><h1>Documents</h1><p className="welcome-sub">Une version maîtrisée, une décision tracée, une lecture confirmée.</p></div><button className="button button-primary" disabled={!context.canWrite || pending||fileBusy} onClick={()=>{ setDraftSite(context.sites.find(site=>site.name===siteName)?.id || context.sites[0]?.id || ''); setForm('create'); setError(''); }}><Plus size={15} /> Nouveau document</button></div>
     {fileBusy&&<p className="attachments-progress" role="status">Une opération sur les pièces jointes est en cours.</p>}
     {error && <div role="alert" className="document-error">{error}</div>}
     <div className="documents-layout">
       <section className="panel documents-list" aria-label="Liste des documents">
-        <div className="documents-toolbar"><Search size={15} /><input aria-label="Rechercher un document" placeholder="Code ou titre du document" value={search} onChange={e=>setSearch(e.target.value)} /></div>
+        <div className="documents-toolbar"><Search size={15} /><input aria-label="Rechercher un document" placeholder="Code ou titre du document" value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}} /></div>
         {loading ? <p className="documents-empty" role="status">Chargement des documents…</p> : documents.length ? documents.map(document=><button key={document.id} disabled={pending||fileBusy} className={`document-list-item ${detail?.document.id===document.id ? 'selected' : ''}`} onClick={()=>void openDocument(document.id)}><span className="document-code"><FileText size={13} /> {document.code}</span><b>{document.title}</b><span className="document-list-meta"><span>{document.siteName}</span><span className={`document-status status-${document.status}`}>{labels[document.status]}</span></span></button>) : <p className="documents-empty">Aucun document accessible dans ce périmètre.</p>}
-        <p className="document-list-foot">100 documents les plus récents au maximum.</p>
+        <div className="pagination"><span>{total} document(s) · page {page+1} sur {Math.max(1,Math.ceil(total/25))}</span><button type="button" className="button button-outline" disabled={loading||pending||fileBusy||page===0} onClick={()=>setPage(value=>value-1)}>Précédent</button><button type="button" className="button button-outline" disabled={loading||pending||fileBusy||(page+1)*25>=total} onClick={()=>setPage(value=>value+1)}>Suivant</button></div>
       </section>
       <section className="panel document-detail" aria-label="Contenu du document">
         {!detail || !version ? <div className="document-start"><FileText size={32} /><h2>Votre référentiel documentaire</h2><p>Sélectionnez un document ou créez un premier brouillon pour démarrer son circuit de validation.</p><div className="document-flow">Rédaction <span>→</span> Vérification <span>→</span> Approbation <span>→</span> Diffusion</div></div> : <>
           <div className="document-title"><div><span className="section-kicker">{detail.document.code} · {detail.document.siteName}</span><h2>{detail.document.title}</h2></div><button className="button" disabled={pending||fileBusy || !context.canWrite || !['published','rejected'].includes(detail.versions[0].status) || detail.versions[0].number!==detail.document.lastVersion} onClick={()=>setForm('version')}><Plus size={14} /> Nouvelle version</button></div>
-          <div className="version-bar"><label>Version <select value={version.id} disabled={pending||fileBusy} onChange={e=>{ setSelectedVersion(e.target.value); setHistory(null); }}>{detail.versions.map(item=><option key={item.id} value={item.id}>v{item.number} · {labels[item.status]}</option>)}</select></label><span className={`document-status status-${version.status}`}>{labels[version.status]}</span></div>
+          <div className="version-bar"><label>Version <select value={version.id} disabled={pending||fileBusy} onChange={e=>{ selection.current++; setSelectedVersion(e.target.value); setHistory(null); setReceipts(null); }}>{detail.versions.map(item=><option key={item.id} value={item.id}>v{item.number} · {labels[item.status]}</option>)}</select></label><span className={`document-status status-${version.status}`}>{labels[version.status]}</span></div>
           <div className="document-people"><span>Auteur <b>{name(version.authorId)}</b></span><span>Vérificateur <b>{name(version.reviewerId)}</b></span><span>Approbateur <b>{name(version.approverId)}</b></span></div>
           {version.status==='draft' && version.authorId===context.actor.id && context.canWrite ? <label className="field-label">Contenu du brouillon<textarea maxLength={15000} rows={15} value={content} onChange={e=>setContent(e.target.value)} disabled={pending||fileBusy} /></label> : <pre className="document-content">{version.content}</pre>}
           {version.decisionNote && <div className="document-decision-note"><b>Commentaire de décision</b><p>{version.decisionNote}</p></div>}
@@ -112,9 +122,11 @@ export default function DocumentsPage({ context,siteName }: { context: Workspace
             {context.canWrite && version.status==='in_review' && version.reviewerId===context.actor.id && <><button className="button" disabled={pending||fileBusy} onClick={()=>void decide('reject')}>Retourner à l’auteur</button><button className="button button-primary" disabled={pending||fileBusy} onClick={()=>void decide('verify')}><Check size={14} /> Vérifier</button></>}
             {context.canWrite && version.status==='pending_approval' && version.approverId===context.actor.id && <><button className="button" disabled={pending||fileBusy} onClick={()=>void decide('reject')}>Retourner à l’auteur</button><button className="button button-primary" disabled={pending||fileBusy} onClick={()=>void decide('approve')}><ShieldCheck size={14} /> Approuver et publier</button></>}
             {version.status==='published' && <button className="button button-primary" disabled={pending||fileBusy || version.acknowledged} onClick={()=>{ if(window.confirm('Je confirme avoir pris connaissance de cette version.')) void mutate(`documents/${detail.document.id}/versions/${version.id}/acknowledgements`,{}); }}><Check size={14} /> {version.acknowledged ? 'Lecture confirmée' : 'Confirmer ma lecture'}</button>}
+            {context.canWrite&&['published','archived'].includes(version.status)&&<button className="button" disabled={pending||fileBusy} onClick={()=>void showReceipts()}>Lectures confirmées</button>}
             <button className="button" disabled={pending||fileBusy} onClick={()=>void showHistory()}><Clock3 size={14} /> Historique</button>
           </div>
           <div className="document-evidence"><span>Empreinte SHA-256</span><code>{version.contentSha256}</code><span>Empreinte du manifeste des pièces jointes</span><code>{version.attachmentsSha256}</code>{version.reviewedAt && <span>Vérifié le {new Date(version.reviewedAt).toLocaleString('fr-FR')}</span>}{version.approvedAt && <span>Approuvé le {new Date(version.approvedAt).toLocaleString('fr-FR')}</span>}</div>
+          {receipts&&<div className="document-history"><h3>Lectures confirmées · {receipts.total}</h3><p>Confirmations reçues pour cette version. Ce relevé ne définit pas de destinataires obligatoires.</p>{receipts.items.map(item=><div key={item.userId}><b>{item.userName||'Compte non actif'}</b><span>{new Date(item.acknowledgedAt).toLocaleString('fr-FR')}</span></div>)}<div className="pagination"><button type="button" className="button button-outline" disabled={pending||receipts.offset===0} onClick={()=>void showReceipts(Math.max(0,receipts.offset-25))}>Précédent</button><button type="button" className="button button-outline" disabled={pending||receipts.offset+25>=receipts.total} onClick={()=>void showReceipts(receipts.offset+25)}>Suivant</button></div></div>}
           {history && <div className="document-history"><h3>Historique des versions</h3>{history.length ? history.map(event=><div key={event.id}><b>{event.operation==='INSERT' ? 'Version créée' : `${labels[event.before?.status as DocumentStatus] || 'Brouillon'} → ${labels[event.after.status as DocumentStatus] || 'Brouillon'}`}</b><span>{name(event.actorId)} · {new Date(event.occurredAt).toLocaleString('fr-FR')}</span></div>) : <p>Aucun événement accessible.</p>}</div>}
         </>}
       </section>

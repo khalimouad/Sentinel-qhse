@@ -31,3 +31,8 @@ export class DocumentQuery {
   @ApiPropertyOptional({ default: 100 }) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=100;
   @ApiPropertyOptional({ default: 0 }) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
 }
+
+export class ReceiptQuery {
+  @ApiPropertyOptional({ default: 25 }) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;
+  @ApiPropertyOptional({ default: 0 }) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
+}
