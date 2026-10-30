@@ -8,6 +8,17 @@ test('third parties, evaluations, gifts and conflicts can be recorded and follow
  const create=async payload=>{const response=await server.request('ethics',admin,{method:'POST',body:JSON.stringify({...base,...payload})});assert.equal(response.status,201);return response.json();};
  const riskResponse=await server.request('risks',admin,{method:'POST',body:JSON.stringify({title:`Risque corruption ${prefix}`,description:'Risque de paiement indu',category:'corruption',siteId:base.siteId,ownerId:base.ownerId,inherentLikelihood:4,inherentSeverity:4,residualLikelihood:2,residualSeverity:3,controls:'Double validation',nextReviewOn:'2030-01-01',processName:'Achats',functionName:'Acheteur',country:'CI'})});assert.equal(riskResponse.status,201);const risk=(await riskResponse.json()).risk;assert.equal(risk.processName,'Achats');assert.equal(risk.country,'CI');
  const control=await create({kind:'control',title:'Contrôle des paiements',riskId:risk.id});assert.equal(control.linkedRiskTitle,risk.title);
+ const tester=await server.token('fatima-k'),testPath=`ethics/${control.id}/tests`,testKey=randomUUID();
+ const planned={title:'Tester un échantillon',plannedOn:'2030-02-01',testerId:'20000000-0000-4000-8000-000000000003',idempotencyKey:testKey};
+ const plannedResponse=await server.request(testPath,admin,{method:'POST',body:JSON.stringify(planned)});assert.equal(plannedResponse.status,201);const testId=(await plannedResponse.json()).id;
+ const retry=await server.request(testPath,admin,{method:'POST',body:JSON.stringify(planned)});assert.equal(retry.status,201);assert.equal((await retry.json()).id,testId);
+ const tests=await (await server.request(testPath,admin)).json();assert.equal(tests.total,1);assert.equal(tests.items[0].status,'planned');
+ const result={revision:1,result:'partial',testedOn:'2030-02-01',evidenceReference:'Dossier contrôle 2026-01',conclusion:'Une anomalie à corriger'};
+ assert.equal((await server.request(`${testPath}/${testId}/complete`,admin,{method:'POST',body:JSON.stringify(result)})).status,403);
+ assert.equal((await server.request(`${testPath}/${testId}/complete`,tester,{method:'POST',body:JSON.stringify(result)})).status,201);
+ assert.equal((await server.request(`${testPath}/${testId}/complete`,tester,{method:'POST',body:JSON.stringify(result)})).status,409);
+ const completedTests=await (await server.request(testPath,admin)).json();assert.equal(completedTests.items[0].result,'partial');assert.equal(completedTests.items[0].evidenceReference,result.evidenceReference);
+
  const riskList=await (await server.request('risks?category=corruption',admin)).json();assert.ok(riskList.items.some(item=>item.id===risk.id));
  const action=await server.request(`risks/${risk.id}/actions`,admin,{method:'POST',body:JSON.stringify({revision:risk.revision,title:'Contrôler les paiements',ownerId:base.ownerId,priority:'high'})});assert.equal(action.status,201);
  const controlDecision=await server.request(`ethics/${control.id}/decision`,admin,{method:'POST',body:JSON.stringify({revision:control.revision,decision:'conditional',note:'Réaliser le contrôle trimestriel'})});assert.equal(controlDecision.status,201);

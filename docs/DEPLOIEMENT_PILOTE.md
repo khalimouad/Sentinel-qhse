@@ -4,7 +4,7 @@ Le projet Supabase `sentinel-qhse-test` est dédié au pilote, en région Paris.
 
 ## Préconditions de mise en service
 
-1. Les migrations 001–038 sont appliquées au projet Supabase de test et leurs empreintes enregistrées dans `public.sentinelle_migrations`. Le propriétaire `sentinelle_schema_owner` est NOLOGIN, sans SUPERUSER ni BYPASSRLS. Contrôler les empreintes lors des prochains déploiements ; ne jamais fournir une connexion propriétaire à l'API.
+1. Les migrations 001–039 sont appliquées au projet Supabase de test et leurs empreintes enregistrées dans `public.sentinelle_migrations`. Le propriétaire `sentinelle_schema_owner` est NOLOGIN, sans SUPERUSER ni BYPASSRLS. Contrôler les empreintes lors des prochains déploiements ; ne jamais fournir une connexion propriétaire à l'API.
 2. Créer le rôle de connexion `sentinelle_app` sans privilèges propriétaire, SUPERUSER ou BYPASSRLS, avec connexion TLS vérifiée. Vérifier que le pooler conserve les transactions et paramètres locaux.
 3. Configurer Supabase Auth : inscription publique désactivée, clés de signature asymétriques, MFA TOTP, URLs de redirection limitées et messagerie adaptée. L'API attend l'émetteur `https://<projet>.supabase.co/auth/v1`, l'audience `authenticated`, le niveau `aal2` et une signature ES256 ou RS256 vérifiée par le JWKS du projet.
 4. Créer le service Render depuis le dépôt puis fournir ses secrets `DATABASE_URL`, `OIDC_ISSUER` et `OIDC_JWKS_URI`. Garder `AUTH_REQUIRE_MFA=true`. Vérifier `/api/v1/health` et les contrôles de démarrage.
@@ -27,7 +27,7 @@ Les commandes d'exploitation `npm run platform:deliver-invitation -- <entreprise
 
 ## Vérifications effectuées et limites
 
-Les migrations 001–038 ont été appliquées sur le projet Supabase de test et sur une base PostgreSQL locale. Le contrôle de sécurité Supabase ne signale aucun avertissement après la migration 027, qui fixe le search_path de trois fonctions. La compilation API et web, les tests de droits existants, le contrôle MFA et les parcours d'invitation avec fournisseur simulé ont réussi ; aucun e-mail réel n'a été envoyé. Le test d'intégration du rôle worker utilise exclusivement une base locale jetable `sentinelle_bulk_verify2` avec un rôle de test temporairement activé.
+Les migrations 001–039 ont été appliquées sur le projet Supabase de test et sur une base PostgreSQL locale. Le contrôle de sécurité Supabase ne signale aucun avertissement après la migration 027, qui fixe le search_path de trois fonctions. La compilation API et web, les tests de droits existants, le contrôle MFA et les parcours d'invitation avec fournisseur simulé ont réussi ; aucun e-mail réel n'a été envoyé. Le test d'intégration du rôle worker utilise exclusivement une base locale jetable `sentinelle_bulk_verify2` avec un rôle de test temporairement activé.
 
 L'API hébergée, les connexions applicatives, l'identité initiale et la configuration de messagerie ne sont pas encore en service. Les tests PostgreSQL d'isolation réalisés localement doivent encore être rejoués sur la base hébergée avec une connexion applicative dédiée ; aucun compte réel n'a été provisionné. Le projet Supabase créé ne démontre pas à lui seul la conformité des sauvegardes, de la restauration, de la résidence des données ou de la disponibilité commerciale. Les données réelles attendront la recette et la configuration de ces services.
 

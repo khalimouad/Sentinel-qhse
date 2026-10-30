@@ -117,3 +117,7 @@ Une évaluation de tiers inclut cinq réponses structurées et une décision hum
 ## Avancement technique — AC-02 et AC-06
 
 Une catégorie de risque corruption permet une première cartographie par processus, fonction et pays ; des contrôles peuvent être liés aux risques. Un scénario API/PostgreSQL local couvre risque, contrôle et action. Les essais de contrôle et la recette métier restent nécessaires : les exigences ne sont pas validées.
+
+## Avancement technique — RSK-02 et AC-06
+
+Les essais de contrôle anticorruption peuvent être planifiés et réalisés avec résultat et référence de preuve. Un scénario API/PostgreSQL local couvre le parcours et le vérificateur. La liaison directe d'une action à un essai, les fichiers et la recette métier restent nécessaires ; les exigences demeurent non validées.
