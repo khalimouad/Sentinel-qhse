@@ -22,3 +22,5 @@ Les migrations 017–018 et l'administration permettent d'enregistrer et consult
 La migration 020 prépare un état de livraison réservé et un identifiant de tentative. Aucune autorisation runtime n'est accordée à cette fonction : elle ne déclenche aucun envoi. La gestion des résultats, la réconciliation et le raccordement au fournisseur restent nécessaires avant activation.
 
 La migration 021 ajoute l'enregistrement d'un résultat confirmé ou incertain pour une tentative précise. Cette fonction reste réservée au propriétaire de migration : aucun droit runtime n'est accordé tant que le fournisseur, la preuve de résultat et l'association des droits ne sont pas intégrés. Un résultat incertain ne doit pas être réexpédié automatiquement.
+
+Un adaptateur Supabase d'invitation est préparé et testé avec un fournisseur simulé. Il valide les URLs, ne suit pas les redirections et classe les erreurs réseau, HTTP et réponses invalides comme incertaines sans renvoi automatique. Il n'est relié à aucune route et ne déclenche encore aucun envoi : l'association sûre du sujet fournisseur aux droits et la réconciliation restent à terminer.
