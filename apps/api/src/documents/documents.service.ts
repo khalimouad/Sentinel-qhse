@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { DocumentDetail, DocumentEvent, DocumentList, DocumentSummary, DocumentVersion } from '@sentinelle/contracts';
 import { Database, type TenantSession } from '../database.js';
 import type { Principal } from '../auth.js';
-import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, DocumentDistributionDto, VersionInput } from './dto.js';
+import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, DocumentDistributionDto, CancelDistributionDto, VersionInput } from './dto.js';
 import { decideDocument, DocumentWorkflowError, validateParticipants } from './workflow.mjs';
 
 const documentColumns = `d.id,d.code,d.title,d.site_id AS "siteId",s.name AS "siteName",d.last_version AS "lastVersion",v.status,d.updated_at AS "updatedAt"`;
@@ -148,10 +148,10 @@ export class DocumentsService {
       if(!version.rows[0])throw new NotFoundException('Version introuvable.');
       const permission=await session.db.query('SELECT identity.can_write_site($1,$2) AS allowed',[session.tenant.id,version.rows[0].site_id]);if(!permission.rows[0].allowed)throw new ForbiddenException('Site non autorisé.');
       if(!['published','archived'].includes(version.rows[0].status))throw new ConflictException('Cette version n’a pas été publiée.');
-      const args=[session.tenant.id,versionId];const count=await session.db.query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE r.user_id IS NOT NULL)::int AS acknowledged
-        FROM app.document_distribution d LEFT JOIN app.document_receipts r ON r.tenant_id=d.tenant_id AND r.version_id=d.version_id AND r.user_id=d.recipient_id WHERE d.tenant_id=$1 AND d.version_id=$2`,args);
-      const {rows}=await session.db.query(`SELECT d.recipient_id AS "recipientId",u.name AS "recipientName",d.assigned_by AS "assignedBy",d.assigned_at AS "assignedAt",r.acknowledged_at AS "acknowledgedAt"
-        FROM app.document_distribution d LEFT JOIN identity.list_members($1) u ON u.id=d.recipient_id LEFT JOIN app.document_receipts r ON r.tenant_id=d.tenant_id AND r.version_id=d.version_id AND r.user_id=d.recipient_id
+      const args=[session.tenant.id,versionId];const count=await session.db.query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE c.recipient_id IS NULL)::int AS active,count(*) FILTER(WHERE c.recipient_id IS NULL AND r.user_id IS NOT NULL)::int AS acknowledged
+        FROM app.document_distribution d LEFT JOIN app.document_receipts r ON r.tenant_id=d.tenant_id AND r.version_id=d.version_id AND r.user_id=d.recipient_id LEFT JOIN app.document_distribution_cancellations c ON c.tenant_id=d.tenant_id AND c.version_id=d.version_id AND c.recipient_id=d.recipient_id WHERE d.tenant_id=$1 AND d.version_id=$2`,args);
+      const {rows}=await session.db.query(`SELECT d.recipient_id AS "recipientId",u.name AS "recipientName",d.assigned_by AS "assignedBy",d.assigned_at AS "assignedAt",r.acknowledged_at AS "acknowledgedAt",c.cancelled_at AS "cancelledAt",c.cancelled_by AS "cancelledBy",c.reason AS "cancellationReason"
+        FROM app.document_distribution d LEFT JOIN identity.list_members($1) u ON u.id=d.recipient_id LEFT JOIN app.document_receipts r ON r.tenant_id=d.tenant_id AND r.version_id=d.version_id AND r.user_id=d.recipient_id LEFT JOIN app.document_distribution_cancellations c ON c.tenant_id=d.tenant_id AND c.version_id=d.version_id AND c.recipient_id=d.recipient_id
         WHERE d.tenant_id=$1 AND d.version_id=$2 ORDER BY d.assigned_at DESC,d.recipient_id LIMIT $3 OFFSET $4`,[...args,query.limit,query.offset]);
       return {items:rows,...count.rows[0]};
     });
@@ -164,8 +164,26 @@ export class DocumentsService {
       if(version.rows[0].status!=='published')throw new ConflictException('Seule une version publiée peut être diffusée.');
       const valid=await session.db.query<{allowed:boolean}>('SELECT bool_and(identity.can_assign_site($1,$2,recipient)) AS allowed FROM unnest($3::uuid[]) recipient',[session.tenant.id,document.siteId,input.recipientIds]);
       if(!valid.rows[0].allowed)throw new BadRequestException('Chaque destinataire doit être actif et habilité sur le site du document.');
+      const cancelled=await session.db.query('SELECT 1 FROM app.document_distribution_cancellations WHERE tenant_id=$1 AND version_id=$2 AND recipient_id=ANY($3::uuid[]) LIMIT 1',[session.tenant.id,versionId,input.recipientIds]);
+      if(cancelled.rowCount)throw new ConflictException('Une affectation annulée ne peut pas être réactivée sur cette version.');
       for(const recipient of input.recipientIds)await session.db.query(`INSERT INTO app.document_distribution(tenant_id,site_id,version_id,recipient_id,assigned_by) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,[session.tenant.id,document.siteId,versionId,recipient,session.actor.id]);
       return {processed:input.recipientIds.length};
+    });
+  }
+  cancelDistribution(principal:Principal,tenant:string|undefined,id:string,versionId:string,recipientId:string,input:CancelDistributionDto) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.write(session);const document=await this.lock(session,id);
+      const version=await session.db.query<{status:string}>('SELECT status FROM app.document_versions WHERE tenant_id=$1 AND document_id=$2 AND id=$3',[session.tenant.id,id,versionId]);
+      if(!version.rows[0])throw new NotFoundException('Version introuvable.');
+      const existing=await session.db.query('SELECT cancelled_by,reason,request_key FROM app.document_distribution_cancellations WHERE tenant_id=$1 AND version_id=$2 AND recipient_id=$3',[session.tenant.id,versionId,recipientId]);
+      if(existing.rows[0]){const item=existing.rows[0];if(item.cancelled_by===session.actor.id&&item.request_key===input.idempotencyKey&&item.reason===input.reason)return {cancelled:true};throw new ConflictException('Cette affectation a déjà été annulée.');}
+      if(version.rows[0].status!=='published')throw new ConflictException('Seule une diffusion active peut être annulée.');
+      const target=await session.db.query('SELECT 1 FROM app.document_distribution WHERE tenant_id=$1 AND version_id=$2 AND recipient_id=$3',[session.tenant.id,versionId,recipientId]);
+      if(!target.rowCount)throw new NotFoundException('Destinataire introuvable.');
+      const reused=await session.db.query('SELECT 1 FROM app.document_distribution_cancellations WHERE tenant_id=$1 AND version_id=$2 AND cancelled_by=$3 AND request_key=$4',[session.tenant.id,versionId,session.actor.id,input.idempotencyKey]);
+      if(reused.rowCount)throw new ConflictException('Cette clé correspond à une autre annulation.');
+      await session.db.query('INSERT INTO app.document_distribution_cancellations(tenant_id,site_id,version_id,recipient_id,cancelled_by,reason,request_key) VALUES($1,$2,$3,$4,$5,$6,$7)',[session.tenant.id,document.siteId,versionId,recipientId,session.actor.id,input.reason,input.idempotencyKey]);
+      return {cancelled:true};
     });
   }
   history(principal: Principal,tenant: string|undefined,id: string): Promise<DocumentEvent[]> {

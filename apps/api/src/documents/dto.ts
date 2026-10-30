@@ -40,3 +40,8 @@ export class ReceiptQuery {
 export class DocumentDistributionDto {
   @ApiProperty({type:[String],maxItems:100}) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @ArrayUnique() @IsUUID('4',{each:true}) recipientIds!:string[];
 }
+
+export class CancelDistributionDto {
+ @ApiProperty({maxLength:2000}) @Transform(({value}:{value:unknown})=>typeof value==='string'?value.trim():value) @IsString() @MinLength(1) @MaxLength(2000) @Matches(/^[^\u0000]*$/) reason!:string;
+ @ApiProperty({format:'uuid'}) @IsUUID() idempotencyKey!:string;
+}

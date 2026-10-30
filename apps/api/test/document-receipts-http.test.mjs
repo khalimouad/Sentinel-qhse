@@ -28,6 +28,15 @@ test('published version receipts are paginated and restricted to site managers',
  assert.equal((await server.request(`${path}/acknowledgements`,author,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
  const list=await server.request(`${path}/acknowledgements?limit=1&offset=0`,author);assert.equal(list.status,200);const data=await list.json();assert.equal(data.total,1);assert.equal(data.items[0].userName,'Aïcha Méité');
  const next=await server.request(`${path}/acknowledgements?limit=1&offset=1`,author);assert.deepEqual((await next.json()).items,[]);
+ const cancelPath=`${targets}/${readerId}/cancel`,cancel={reason:'Changement de fonction',idempotencyKey:randomUUID()};
+ assert.equal((await server.request(cancelPath,reader,{method:'POST',body:JSON.stringify(cancel)})).status,403);
+ for(let n=0;n<2;n++)assert.equal((await server.request(cancelPath,author,{method:'POST',body:JSON.stringify(cancel)})).status,201);
+ assert.equal((await server.request(cancelPath,author,{method:'POST',body:JSON.stringify({...cancel,reason:'Autre motif'})})).status,409);
+ distribution=await (await server.request(targets,author)).json();assert.equal(distribution.total,1);assert.equal(distribution.active,0);assert.equal(distribution.acknowledged,0);assert.equal(distribution.items[0].cancellationReason,cancel.reason);assert.ok(distribution.items[0].acknowledgedAt);
+ assert.equal((await server.request(targets,author,{method:'POST',body:JSON.stringify({recipientIds:[readerId]})})).status,409);
+ const afterCancel=await (await server.request('notifications?filter=all&limit=100',reader)).json();assert.ok(!afterCancel.items.some(n=>n.id===notices[0].id));
+ assert.equal((await server.request(`notifications/${notices[0].id}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,404);
+
  const replacement=await server.request(`documents/${id}/versions`,author,{method:'POST',body:JSON.stringify({expectedLastVersion:1,content:'Nouvelle version',reviewerId:'20000000-0000-4000-8000-000000000003',approverId:'20000000-0000-4000-8000-000000000005'})});assert.equal(replacement.status,201);detail=await replacement.json();const newPath=`documents/${id}/versions/${detail.versions[0].id}`;
  for(const [command,actor] of [['submit',author],['verify',reviewer],['approve',approver]]){const response=await server.request(`${newPath}/decisions`,actor,{method:'POST',body:JSON.stringify({revision:detail.versions[0].revision,command})});assert.equal(response.status,201);detail=await response.json();}
  const afterReplacement=await (await server.request('notifications?filter=all&limit=100',reader)).json();assert.ok(!afterReplacement.items.some(n=>n.id===notices[0].id));

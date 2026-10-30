@@ -93,3 +93,7 @@ Des destinataires habilités peuvent être désignés sur une version publiée ;
 ## Avancement technique — SOC-01 et TECH-04
 
 La diffusion ciblée crée une notification interne visible seulement par le destinataire autorisé pendant la publication de la version. Des tests locaux couvrent création, déduplication, lecture et masquage au remplacement. Les courriels, les relances et la recette navigateur restent nécessaires ; les exigences demeurent non validées.
+
+## Avancement technique — SOC-01, annulation
+
+Les responsables peuvent annuler une affectation avec motif et conserver sa preuve de lecture antérieure ; la notification associée est masquée. Les tests API/PostgreSQL locaux couvrent droits et reprise. La réaffectation, les relances et la recette navigateur restent nécessaires ; l'exigence reste non validée.

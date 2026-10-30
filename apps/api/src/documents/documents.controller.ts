@@ -2,7 +2,7 @@ import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Quer
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { IdentityGuard, type AuthenticatedRequest } from '../auth.js';
 import { DocumentsService } from './documents.service.js';
-import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, DocumentDistributionDto } from './dto.js';
+import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, DocumentDistributionDto, CancelDistributionDto } from './dto.js';
 
 @ApiTags('Documents') @ApiBearerAuth() @ApiHeader({ name: 'X-Tenant-Id',required: true })
 @Controller('documents') @UseGuards(IdentityGuard)
@@ -18,5 +18,6 @@ export class DocumentsController {
   @Get(':id/versions/:versionId/acknowledgements') receipts(@Req() req: AuthenticatedRequest,@Headers('x-tenant-id') tenant: string|undefined,@Param('id',new ParseUUIDPipe()) id: string,@Param('versionId',new ParseUUIDPipe()) version: string,@Query() query: ReceiptQuery) { return this.documents.receipts(req.principal,tenant,id,version,query); }
   @Get(':id/versions/:versionId/distribution') distribution(@Req() req:AuthenticatedRequest,@Headers('x-tenant-id') tenant:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Param('versionId',new ParseUUIDPipe()) version:string,@Query() query:ReceiptQuery) { return this.documents.distribution(req.principal,tenant,id,version,query); }
   @Post(':id/versions/:versionId/distribution') assign(@Req() req:AuthenticatedRequest,@Headers('x-tenant-id') tenant:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Param('versionId',new ParseUUIDPipe()) version:string,@Body() input:DocumentDistributionDto) { return this.documents.assignDistribution(req.principal,tenant,id,version,input); }
+  @Post(':id/versions/:versionId/distribution/:recipientId/cancel') cancelDistribution(@Req() req:AuthenticatedRequest,@Headers('x-tenant-id') tenant:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Param('versionId',new ParseUUIDPipe()) version:string,@Param('recipientId',new ParseUUIDPipe()) recipient:string,@Body() input:CancelDistributionDto) { return this.documents.cancelDistribution(req.principal,tenant,id,version,recipient,input); }
   @Get(':id/history') history(@Req() req: AuthenticatedRequest,@Headers('x-tenant-id') tenant: string|undefined,@Param('id',new ParseUUIDPipe()) id: string) { return this.documents.history(req.principal,tenant,id); }
 }
