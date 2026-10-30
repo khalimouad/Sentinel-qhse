@@ -1,0 +1,13 @@
+import {Body,Controller,Get,Headers,Param,ParseUUIDPipe,Patch,Post,Query,Req,UseGuards} from '@nestjs/common';
+import {ApiBearerAuth,ApiHeader,ApiTags} from '@nestjs/swagger';
+import {IdentityGuard,type AuthenticatedRequest} from '../auth.js';
+import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto} from './dto.js';
+import {EthicsService} from './ethics.service.js';
+@ApiTags('Anticorruption') @ApiBearerAuth() @ApiHeader({name:'X-Tenant-Id',required:true}) @Controller('ethics') @UseGuards(IdentityGuard)
+export class EthicsController {
+ constructor(private readonly service:EthicsService){}
+ @Get() list(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Query() q:EthicsQuery){return this.service.list(r.principal,t,q);}
+ @Post() create(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Body() b:CreateEthicsDto){return this.service.create(r.principal,t,b);}
+ @Patch(':id') update(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Body() b:UpdateEthicsDto){return this.service.update(r.principal,t,id,b);}
+ @Get(':id/history') history(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Param('id',new ParseUUIDPipe()) id:string){return this.service.history(r.principal,t,id);}
+}

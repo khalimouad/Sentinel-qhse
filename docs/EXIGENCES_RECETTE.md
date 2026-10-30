@@ -105,3 +105,7 @@ Les responsables peuvent déclencher une relance interne nominative, limitée à
 ## Avancement technique — SOC-01, sélection et suivi
 
 La recherche paginée propose les destinataires actifs habilités sur le site ; l'historique des relances est consultable par les responsables. Des tests locaux couvrent recherche et restrictions. La recette navigateur et les relances par courriel restent nécessaires ; l'exigence reste non validée.
+
+## Avancement technique — AC-03 et AC-04
+
+Un premier registre persistant couvre tiers, évaluations, cadeaux/invitations et conflits ; un test local crée dix tiers et suit les fiches. Les questionnaires structurés, seuils, circuits, preuves, recette navigateur et exploitation réelle restent à développer ou vérifier. Les exigences demeurent non validées.

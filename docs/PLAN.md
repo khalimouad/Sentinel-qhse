@@ -262,3 +262,11 @@ La migration 034 est installée sur Supabase de test ; RLS est forcée et le con
 L'interface recherche les comptes actifs habilités sur le site du document ; les personnes déjà affectées, y compris celles dont l'affectation a été annulée, sont exclues de cette sélection. Les résultats sont paginés et la sélection reste visible entre les pages. Les responsables peuvent consulter, pour chaque destinataire, l'historique paginé des relances avec auteur, date et lecture de la notification. Ces consultations appliquent les permissions de l'entreprise et du site ; elles ne créent ni relance ni courriel.
 
 Le build, les tests du mode démonstration et les 34 tests d'intégration locaux ont réussi. Les tests API ciblés couvrent recherche, exclusion après affectation, restriction aux responsables et isolation d'entreprise. Aucune migration n'est nécessaire. La recette navigateur et l'intégration de messagerie restent ouvertes.
+
+## Priorité recentrée — premier bloc métier anticorruption
+
+Conformément à la demande de l'utilisateur, les prochains développements privilégient les parcours métier de conformité et d'anticorruption, puis les modules sectoriels ; les finitions et approfondissements transverses seront traités ensuite. Les règles d'isolation existantes restent appliquées.
+
+La migration 035 et le menu Anticorruption ajoutent un premier registre persistant de tiers, évaluations liées à un tiers, cadeaux/invitations et conflits d'intérêts. Les fiches comprennent site, responsable, analyse, risque, statut et date de revue ; les cadeaux comportent un montant et une devise. Les modifications sont historisées et soumises à une révision attendue. L'interface permet la création, consultation et mise à jour. Une évaluation doit référencer un tiers du même site.
+
+La migration est appliquée sur Supabase de test ; le build et le test API/PostgreSQL local incluant dix tiers et les quatre types de fiche ont réussi. Ce premier registre ne couvre pas encore questionnaires structurés, seuils et circuits d'approbation, décisions indépendantes, dons, sanctions/PEP, pièces justificatives, export ou bilinguisme. L'API hébergée reste à déployer ; le mode démonstration présente des listes vides et ne simule pas les écritures. Les exigences AC-03 et AC-04 ne sont pas encore validées.
