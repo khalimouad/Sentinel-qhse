@@ -32,6 +32,8 @@ export class EthicsQuestionnaireDto {
  @ApiPropertyOptional({enum:['yes','no','unknown']}) @IsOptional() @IsIn(['yes','no','unknown']) intermediary_use?:string;
 }
 export class UpdateEthicsDto {
+ @ApiPropertyOptional() @IsOptional() @Matches(/^\d{1,12}(?:\.\d{1,2})?$/) amount?:string;
+ @ApiPropertyOptional({enum:['EUR','XOF','XAF','MAD','USD','GBP']}) @IsOptional() @IsIn(['EUR','XOF','XAF','MAD','USD','GBP']) currency?:string;
  @ApiPropertyOptional({type:EthicsQuestionnaireDto}) @IsOptional() @ValidateNested() @Type(()=>EthicsQuestionnaireDto) questionnaire?:EthicsQuestionnaireDto;
  @ApiProperty() @IsInt() @Min(1) revision!:number;
  @ApiProperty({enum:['open','reviewed','closed']}) @IsIn(['open','reviewed','closed']) status!:string;

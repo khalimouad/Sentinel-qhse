@@ -4,9 +4,10 @@ import {Database} from '../database.js';
 import {actionColumns,actionJoins} from '../actions/action-query.js';
 import type {EthicsSummary} from '@sentinelle/contracts';
 import type {Principal} from '../auth.js';
+import {CreateThresholdDto,ThresholdQuery} from './threshold.dto.js';
 import {ControlTestQuery,CreateControlTestDto,CompleteControlTestDto,ControlTestActionDto} from './control-tests.dto.js';
 import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto,EthicsSummaryQuery} from './dto.js';
-const columns=`e.id,e.kind,e.title,e.description,e.country,e.site_id AS "siteId",s.name AS "siteName",e.party_id AS "partyId",p.title AS "partyName",e.risk_id AS "riskId",r.title AS "linkedRiskTitle",e.risk,e.status,e.amount::text AS amount,e.currency,e.occurred_on::text AS "occurredOn",e.review_on::text AS "reviewOn",e.owner_id AS "ownerId",e.questionnaire,e.questionnaire_version AS "questionnaireVersion",e.decision,e.decision_note AS "decisionNote",e.decided_by AS "decidedBy",e.decided_at AS "decidedAt",e.revision,e.created_at AS "createdAt",e.updated_at AS "updatedAt"`;
+const columns=`e.id,e.kind,e.title,e.description,e.country,e.site_id AS "siteId",s.name AS "siteName",e.party_id AS "partyId",p.title AS "partyName",e.risk_id AS "riskId",r.title AS "linkedRiskTitle",e.risk,e.status,e.amount::text AS amount,e.currency,e.occurred_on::text AS "occurredOn",e.review_on::text AS "reviewOn",e.owner_id AS "ownerId",e.questionnaire,e.questionnaire_version AS "questionnaireVersion",e.decision,e.decision_note AS "decisionNote",e.decided_by AS "decidedBy",e.decided_at AS "decidedAt",e.decision_threshold_id AS "decisionThresholdId",e.decision_threshold_amount::text AS "decisionThresholdAmount",e.decision_escalated AS "decisionEscalated",e.revision,e.created_at AS "createdAt",e.updated_at AS "updatedAt"`;
 const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT JOIN app.ethics_records p ON p.id=e.party_id AND p.tenant_id=e.tenant_id LEFT JOIN app.risks r ON r.id=e.risk_id AND r.tenant_id=e.tenant_id';
 @Injectable() export class EthicsService {
  constructor(private readonly database:Database){}
@@ -27,6 +28,20 @@ const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT J
       'completedTests',(SELECT count(*)::int FROM tests WHERE status='completed'),'nonEffectiveTests',(SELECT count(*)::int FROM tests WHERE status='completed' AND result IN ('partial','ineffective')),
       'openActions',(SELECT count(*)::int FROM actions WHERE status='open')) AS controls`,[session.tenant.id,query.siteId||null]);return rows[0];
  });}
+ thresholds(principal:Principal,tenant:string|undefined,query:ThresholdQuery){return this.database.withTenant(principal,tenant,async session=>{
+  if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
+  const allowed=await session.db.query('SELECT identity.can_write_site($1,$2) AS allowed',[session.tenant.id,query.siteId]);if(!allowed.rows[0].allowed)throw new ForbiddenException('Site non autorisé.');
+  const {rows}=await session.db.query(`SELECT DISTINCT ON(kind,currency) id,kind,currency,amount::text AS amount,version,created_by AS "createdBy",created_at AS "createdAt" FROM app.ethics_thresholds WHERE tenant_id=$1 AND site_id=$2 ORDER BY kind,currency,version DESC`,[session.tenant.id,query.siteId]);return {items:rows};
+ });}
+ createThreshold(principal:Principal,tenant:string|undefined,input:CreateThresholdDto){return this.database.withTenant(principal,tenant,async session=>{
+  if(session.tenant.role!=='admin')throw new ForbiddenException('Seul un administrateur peut configurer les seuils.');
+  const allowed=await session.db.query('SELECT identity.can_write_site($1,$2) AS allowed',[session.tenant.id,input.siteId]);if(!allowed.rows[0].allowed)throw new ForbiddenException('Site non autorisé.');
+  await session.db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",[`${session.tenant.id}:${input.siteId}:ethics-threshold`]);
+  const previous=await session.db.query('SELECT id,kind,currency,amount::text AS amount FROM app.ethics_thresholds WHERE tenant_id=$1 AND site_id=$2 AND created_by=$3 AND request_key=$4',[session.tenant.id,input.siteId,session.actor.id,input.idempotencyKey]);
+  if(previous.rows[0]){const p=previous.rows[0];const equal=await session.db.query('SELECT $1::numeric=$2::numeric AS equal',[p.amount,input.amount]);if(p.kind!==input.kind||p.currency!==input.currency||!equal.rows[0].equal)throw new ConflictException('Cette clé correspond à un autre seuil.');return {id:p.id};}
+  const id=randomUUID();await session.db.query(`INSERT INTO app.ethics_thresholds(id,tenant_id,site_id,kind,currency,amount,version,created_by,request_key)
+   SELECT $1,$2,$3,$4,$5,$6,coalesce(max(version),0)+1,$7,$8 FROM app.ethics_thresholds WHERE tenant_id=$2 AND site_id=$3 AND kind=$4 AND currency=$5`,[id,session.tenant.id,input.siteId,input.kind,input.currency,input.amount,session.actor.id,input.idempotencyKey]);return {id};
+ });}
  list(principal:Principal,tenant:string|undefined,query:EthicsQuery){return this.database.withTenant(principal,tenant,async session=>{
   if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
   const args=[session.tenant.id,query.kind,query.siteId||null,query.search||''];const where="WHERE e.tenant_id=$1 AND e.kind=$2 AND ($3::uuid IS NULL OR e.site_id=$3) AND ($4::text='' OR strpos(lower(e.title),lower($4))>0)";
@@ -46,15 +61,29 @@ const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT J
  });}
  update(principal:Principal,tenant:string|undefined,id:string,input:UpdateEthicsDto){return this.database.withTenant(principal,tenant,async session=>{
   if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
+  if(input.amount!==undefined&&!input.currency)throw new BadRequestException('La devise est obligatoire pour un montant.');
+  if(input.amount!==undefined){const item=await session.db.query('SELECT kind FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!item.rowCount)throw new NotFoundException('Dossier introuvable.');if(!['gift','donation'].includes(item.rows[0].kind))throw new BadRequestException('Le montant concerne un cadeau ou un don.');}
   if(input.questionnaire){const record=await session.db.query('SELECT kind FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!record.rowCount)throw new NotFoundException('Dossier introuvable.');if(record.rows[0].kind!=='assessment')throw new BadRequestException('Le questionnaire concerne une évaluation de tiers.');}
-  const updated=await session.db.query('UPDATE app.ethics_records SET status=$3,risk=$4,description=$5,review_on=$6,questionnaire=coalesce($8::jsonb,questionnaire) WHERE tenant_id=$1 AND id=$2 AND revision=$7 RETURNING id',[session.tenant.id,id,input.status,input.risk,input.description,input.reviewOn||null,input.revision,input.questionnaire?JSON.stringify(input.questionnaire):null]);
+  const changed="($9::numeric IS NOT NULL AND (amount IS DISTINCT FROM $9::numeric OR currency IS DISTINCT FROM $10::text))";
+  const updated=await session.db.query(`UPDATE app.ethics_records SET status=CASE WHEN ${changed} THEN 'open' ELSE $3 END,risk=$4,description=$5,review_on=$6,questionnaire=coalesce($8::jsonb,questionnaire),
+   decision=CASE WHEN ${changed} THEN NULL ELSE decision END,decision_note=CASE WHEN ${changed} THEN NULL ELSE decision_note END,decided_by=CASE WHEN ${changed} THEN NULL ELSE decided_by END,decided_at=CASE WHEN ${changed} THEN NULL ELSE decided_at END,
+   decision_threshold_id=CASE WHEN ${changed} THEN NULL ELSE decision_threshold_id END,decision_threshold_amount=CASE WHEN ${changed} THEN NULL ELSE decision_threshold_amount END,decision_escalated=CASE WHEN ${changed} THEN false ELSE decision_escalated END,amount=coalesce($9::numeric,amount),currency=CASE WHEN $9::numeric IS NULL THEN currency ELSE $10 END
+   WHERE tenant_id=$1 AND id=$2 AND revision=$7 RETURNING id`,[session.tenant.id,id,input.status,input.risk,input.description,input.reviewOn||null,input.revision,input.questionnaire?JSON.stringify(input.questionnaire):null,input.amount??null,input.currency??null]);
   if(!updated.rowCount){const existing=await session.db.query('SELECT id FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!existing.rowCount)throw new NotFoundException('Dossier introuvable.');throw new ConflictException('Ce dossier a changé. Actualisez.');}
   const {rows}=await session.db.query(`SELECT ${columns} ${joins} WHERE e.tenant_id=$1 AND e.id=$2`,[session.tenant.id,id]);return rows[0];
  });}
  decide(principal:Principal,tenant:string|undefined,id:string,input:EthicsDecisionDto){return this.database.withTenant(principal,tenant,async session=>{
   if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
-  const updated=await session.db.query("UPDATE app.ethics_records SET decision=$3,decision_note=$4,decided_by=$5,decided_at=clock_timestamp(),status='reviewed' WHERE tenant_id=$1 AND id=$2 AND revision=$6 AND kind<>'third_party' RETURNING id",[session.tenant.id,id,input.decision,input.note,session.actor.id,input.revision]);
-  if(!updated.rowCount){const existing=await session.db.query('SELECT kind FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!existing.rowCount)throw new NotFoundException('Dossier introuvable.');if(existing.rows[0].kind==='third_party')throw new BadRequestException('Créez une évaluation avant de prendre une décision sur un tiers.');throw new ConflictException('Ce dossier a changé. Actualisez.');}
+  const record=await session.db.query<{kind:string;site_id:string;amount:string|null;currency:string|null;revision:number}>('SELECT kind,site_id,amount::text AS amount,currency,revision FROM app.ethics_records WHERE tenant_id=$1 AND id=$2 FOR UPDATE',[session.tenant.id,id]);
+  if(!record.rows[0])throw new NotFoundException('Dossier introuvable.');const item=record.rows[0];if(item.kind==='third_party')throw new BadRequestException('Créez une évaluation avant de prendre une décision sur un tiers.');if(item.revision!==input.revision)throw new ConflictException('Ce dossier a changé. Actualisez.');
+  if(['gift','donation'].includes(item.kind)&&(item.amount===null||!item.currency))throw new BadRequestException('Enregistrez le montant et la devise avant la décision.');
+  let thresholdId:string|null=null,thresholdAmount:string|null=null,escalated=false;
+  if(['gift','donation'].includes(item.kind)&&item.amount!==null&&item.currency){
+   await session.db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",[`${session.tenant.id}:${item.site_id}:ethics-threshold`]);
+   const threshold=await session.db.query<{id:string;amount:string;escalated:boolean}>(`SELECT id,amount::text AS amount,$5::numeric>amount AS escalated FROM app.ethics_thresholds WHERE tenant_id=$1 AND site_id=$2 AND kind=$3 AND currency=$4 ORDER BY version DESC LIMIT 1`,[session.tenant.id,item.site_id,item.kind,item.currency,item.amount]);
+   if(threshold.rows[0]){thresholdId=threshold.rows[0].id;thresholdAmount=threshold.rows[0].amount;escalated=threshold.rows[0].escalated;if(escalated&&session.tenant.role!=='admin')throw new ForbiddenException('Cette déclaration dépasse le seuil et nécessite une décision administrateur.');}
+  }
+  await session.db.query("UPDATE app.ethics_records SET decision=$3,decision_note=$4,decided_by=$5,decided_at=clock_timestamp(),status='reviewed',decision_threshold_id=$6,decision_threshold_amount=$7,decision_escalated=$8 WHERE tenant_id=$1 AND id=$2",[session.tenant.id,id,input.decision,input.note,session.actor.id,thresholdId,thresholdAmount,escalated]);
   const {rows}=await session.db.query(`SELECT ${columns} ${joins} WHERE e.tenant_id=$1 AND e.id=$2`,[session.tenant.id,id]);return rows[0];
  });}
  tests(principal:Principal,tenant:string|undefined,id:string,query:ControlTestQuery){return this.database.withTenant(principal,tenant,async session=>{

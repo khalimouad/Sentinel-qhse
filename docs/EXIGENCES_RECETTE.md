@@ -129,3 +129,7 @@ Un essai de contrôle partiellement efficace ou non efficace peut générer une 
 ## Avancement technique — AC-02 à AC-06, suivi consolidé
 
 Une vue consolidée présente les dossiers et activités anticorruption enregistrés, les évaluations et décisions en attente, les essais et actions. Des tests locaux couvrent les agrégats. Elle ne remplace pas la recette des parcours ni les rapports de gouvernance requis ; les exigences demeurent non validées.
+
+## Avancement technique — AC-04, seuils
+
+Les cadeaux et dons disposent de seuils versionnés par site et devise ; le dépassement nécessite une décision administrateur. Des tests API/PostgreSQL locaux couvrent égalité, dépassement et changement de montant. Les circuits multi-étapes et la recette navigateur restent nécessaires ; l'exigence demeure non validée.
