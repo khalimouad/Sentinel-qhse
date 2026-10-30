@@ -8,6 +8,8 @@ test('demo action lists filter before pagination',async()=>{
   const tenant=context.tenant.id;
   const created=await demoApi('actions',tenant,{method:'POST',body:JSON.stringify({title:'Contrôle paginé',siteId:context.sites[0].id,ownerId:context.actor.id,priority:'normal'})});
   await demoApi(`actions/${created.id}`,tenant,{method:'PATCH',body:JSON.stringify({version:created.version,status:'closed'})});
+  const exported=await demoApi('actions/export?status=closed&search=Contr%C3%B4le',tenant);
+  assert.equal(exported.total,1);assert.equal(exported.items[0].id,created.id);
   const closed=await demoApi('actions?status=closed&search=Contr%C3%B4le&limit=1&offset=0',tenant);
   assert.equal(closed.total,1);assert.equal(closed.items[0].id,created.id);
   const open=await demoApi('actions?status=open&search=Contr%C3%B4le',tenant);

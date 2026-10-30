@@ -24,3 +24,10 @@ export class ActionQuery {
   @ApiPropertyOptional({ default: 100, maximum: 100 }) @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 100;
   @ApiPropertyOptional({ default: 0 }) @Type(() => Number) @IsInt() @Min(0) @Max(100000) offset = 0;
 }
+
+// Export filters match the register but deliberately do not accept pagination.
+export class ActionExportQuery {
+  @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() siteId?: string;
+  @ApiPropertyOptional({ enum: ['open','closed'] }) @IsOptional() @IsIn(['open','closed']) status?: ActionStatus;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) search?: string;
+}

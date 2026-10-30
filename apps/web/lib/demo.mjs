@@ -41,7 +41,8 @@ export async function demoApi(path,tenantId,options={}){
  }
  else if(kind==='actions'){
   const item=s.actions.find(x=>x.id===id);
-  if(!id)result=method==='POST'?action(input):page(filter(s.actions,q).filter(item=>!q.get('status')||item.status===q.get('status')),q);
+  if(id==='export'&&method==='GET'){const items=filter(s.actions,q).filter(item=>!q.get('status')||item.status===q.get('status'));if(items.length>10000)throw new Error('L’export dépasse 10 000 actions. Affinez les filtres.');result={items,total:items.length};}
+  else if(!id)result=method==='POST'?action(input):page(filter(s.actions,q).filter(item=>!q.get('status')||item.status===q.get('status')),q);
   else if(!item)throw new Error('Action de démonstration introuvable.');
   else if(command==='history')result=s.history[id]||[];
   else if(command==='comments'){

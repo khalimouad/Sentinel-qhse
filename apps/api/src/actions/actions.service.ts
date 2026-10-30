@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Action, ActionList, AuditEvent } from '@sentinelle/contracts';
 import { Database, type TenantSession } from '../database.js';
 import type { Principal } from '../auth.js';
-import { ActionQuery, CreateActionDto, UpdateActionDto } from './dto.js';
+import { ActionExportQuery, ActionQuery, CreateActionDto, UpdateActionDto } from './dto.js';
 import { actionColumns as columns, actionJoins as joins } from './action-query.js';
 
 @Injectable()
@@ -20,6 +20,18 @@ export class ActionsService {
       const count = await db.query(`SELECT count(*)::integer AS total FROM app.actions a ${conditions}`, params);
       const { rows } = await db.query<Action>(`SELECT ${columns} ${joins} ${conditions} ORDER BY a.created_at DESC,a.id LIMIT $5 OFFSET $6`, [...params, query.limit, query.offset]);
       return { items: rows, total: count.rows[0].total };
+    });
+  }
+  async export(principal: Principal, tenant: string | undefined, query: ActionExportQuery): Promise<ActionList> {
+    return this.database.withTenant(principal, tenant, async ({ db, tenant: scope }) => {
+      const params = [scope.id,query.siteId || null,query.status || null,query.search || ''];
+      // One statement provides a consistent snapshot. Never silently truncate.
+      const { rows } = await db.query<Action>(`SELECT ${columns} ${joins}
+        WHERE a.tenant_id=$1 AND ($2::uuid IS NULL OR a.site_id=$2) AND ($3::text IS NULL OR a.status=$3)
+        AND ($4::text='' OR strpos(lower(a.title),lower($4))>0)
+        ORDER BY a.created_at DESC,a.id LIMIT 10001`, params);
+      if (rows.length > 10000) throw new BadRequestException('L’export dépasse 10 000 actions. Affinez les filtres par site ou statut.');
+      return { items: rows, total: rows.length };
     });
   }
   async create(principal: Principal, tenant: string | undefined, input: CreateActionDto): Promise<Action> {
