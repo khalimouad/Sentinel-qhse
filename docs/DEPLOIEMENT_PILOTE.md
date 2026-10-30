@@ -24,3 +24,5 @@ La migration 020 prépare un état de livraison réservé et un identifiant de t
 La migration 021 ajoute l'enregistrement d'un résultat confirmé ou incertain pour une tentative précise. Cette fonction reste réservée au propriétaire de migration : aucun droit runtime n'est accordé tant que le fournisseur, la preuve de résultat et l'association des droits ne sont pas intégrés. Un résultat incertain ne doit pas être réexpédié automatiquement.
 
 Un adaptateur Supabase d'invitation est préparé et testé avec un fournisseur simulé. Il valide les URLs, ne suit pas les redirections et classe les erreurs réseau, HTTP et réponses invalides comme incertaines sans renvoi automatique. Il n'est relié à aucune route et ne déclenche encore aucun envoi : l'association sûre du sujet fournisseur aux droits et la réconciliation restent à terminer.
+
+La migration 022 prépare le rattachement transactionnel d'une identité fournisseur confirmée aux droits demandés, sans modifier une adhésion existante. Elle reste inaccessible au rôle runtime et ne remplace pas la vérification de la réponse fournisseur ; le service de livraison et la réconciliation restent à intégrer.

@@ -74,3 +74,20 @@ test('delivery state prevents duplicate reservation and stale outcomes',async()=
   await assert.rejects(runtime.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,created.id,randomUUID()]),{code:'42501'});
  }finally{await privileged.query('ROLLBACK').catch(()=>{});await runtime.query('ROLLBACK').catch(()=>{});await privileged.end();await runtime.end();}
 });
+
+test('confirmed invitation creates scoped membership exactly once',async()=>{
+ const db=new pg.Client({connectionString:process.env.DATABASE_ADMIN_URL});await db.connect();
+ try{
+  await db.query('BEGIN');await db.query('INSERT INTO identity.platform_admins(user_id) VALUES($1) ON CONFLICT DO NOTHING',[actor]);await db.query("SELECT set_config('app.actor_id',$1,true)",[actor]);
+  const subject=randomUUID(),attempt=randomUUID(),input={email:'test@example.test',name:'Test invitation',role:'reader',allSites:false,siteIds:[site]};
+  const id=(await db.query('SELECT identity.platform_invitation_create($1,$2,$3,$4) AS result',[tenant,input,randomUUID(),'Recette'])).rows[0].result.id;
+  await db.query('SAVEPOINT unconfirmed');await assert.rejects(db.query('SELECT identity.platform_invitation_link($1,$2,$3)',[tenant,id,'https://example.supabase.co/auth/v1']),{code:'40001'});await db.query('ROLLBACK TO SAVEPOINT unconfirmed');
+  await db.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,id,attempt]);
+  await db.query('SELECT identity.platform_invitation_record_outcome($1,$2,$3,$4,$5)',[tenant,id,attempt,'sent',subject]);
+  const one=(await db.query('SELECT identity.platform_invitation_link($1,$2,$3) AS result',[tenant,id,'https://example.supabase.co/auth/v1'])).rows[0].result;
+  const two=(await db.query('SELECT identity.platform_invitation_link($1,$2,$3) AS result',[tenant,id,'https://example.supabase.co/auth/v1'])).rows[0].result;
+  assert.equal(one.userId,two.userId);
+  const membership=await db.query('SELECT role,all_sites FROM identity.memberships WHERE tenant_id=$1 AND user_id=$2',[tenant,one.userId]);assert.deepEqual(membership.rows[0],{role:'reader',all_sites:false});
+  const grants=await db.query('SELECT site_id FROM identity.site_grants WHERE tenant_id=$1 AND user_id=$2',[tenant,one.userId]);assert.deepEqual(grants.rows.map(row=>row.site_id),[site]);
+ }finally{await db.query('ROLLBACK').catch(()=>{});await db.end();}
+});
