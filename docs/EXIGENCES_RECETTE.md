@@ -137,3 +137,7 @@ Les cadeaux et dons disposent de seuils versionnés par site et devise ; le dép
 ## Avancement technique — AC-03 et AC-04, dossiers tiers
 
 Les évaluations, cadeaux, conflits et dons liés à un tiers peuvent être consultés depuis sa fiche. Des tests locaux couvrent les liens et leur périmètre. La recette métier et les autres exigences des circuits restent nécessaires ; AC-03 et AC-04 demeurent non validées.
+
+## Avancement technique — AC-03, profil des tiers
+
+La fiche d'un tiers permet de saisir ses informations d'identification, son activité et sa structure de propriété ; elle affiche sa dernière évaluation. Un test local couvre le parcours. Les preuves, les contrôles externes et la recette de dix évaluations restent à réaliser ; AC-03 demeure non validée.

@@ -312,3 +312,9 @@ Le montant et la devise sont obligatoires avant décision et peuvent être ajout
 Les cadeaux, conflits d'intérêts et dons peuvent être associés à un tiers du même site ; les évaluations restent obligatoirement liées à un tiers. La fiche tiers présente une liste paginée et filtrable des évaluations et déclarations liées, avec leur état et décision, et permet d'ouvrir chaque dossier. Le choix du tiers lors de la création propose actuellement les 100 tiers les plus récents du site.
 
 La migration 043 est appliquée sur Supabase de test. Le build et 35 tests d'intégration locaux ont réussi, dont création des quatre types de dossiers liés, filtre, isolation et refus d'un tiers inexistant. Les liens ne sont pas encore modifiables après création ; la recherche complète des tiers, les justificatifs et la recette navigateur restent à développer. L'API hébergée reste nécessaire pour les comptes réels.
+
+## Anticorruption — profil et suivi des tiers
+
+La fiche tiers comprend le type de relation, l'immatriculation, le contact, l'activité et une description des bénéficiaires effectifs ou de la structure de propriété. La création et la modification sont enregistrées dans l'historique existant. La fiche affiche la dernière évaluation créée, sa décision et sa prochaine revue ; elle ne conclut pas automatiquement à la conformité ou à l'actualité de l'évaluation après une modification du profil.
+
+La migration 044 est appliquée sur Supabase de test. Le build et les 35 tests d'intégration locaux ont réussi, dont création et modification du profil, validation de l'adresse et lecture de la dernière évaluation. La collecte de preuves, les données sanctions/PEP, les évaluations sur dix tiers en recette et la recette navigateur restent à réaliser. L'API hébergée reste nécessaire pour les comptes réels.

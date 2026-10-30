@@ -1,5 +1,5 @@
 import {Transform,Type} from 'class-transformer';
-import {IsDateString,IsIn,IsInt,IsOptional,IsString,IsUUID,Matches,Max,MaxLength,Min,MinLength,ValidateNested} from 'class-validator';
+import {IsDateString,IsIn,IsInt,IsOptional,IsString,IsUUID,Matches,Max,MaxLength,Min,MinLength,ValidateNested,IsEmail,ValidateIf} from 'class-validator';
 import {ApiProperty,ApiPropertyOptional} from '@nestjs/swagger';
 const trim=({value}:{value:unknown})=>typeof value==='string'?value.trim():value;
 export class EthicsQuery {
@@ -10,6 +10,13 @@ export class EthicsQuery {
  @ApiPropertyOptional({default:0}) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
 }
 export class CreateEthicsDto {
+ @ApiPropertyOptional({enum:['unspecified','supplier','customer','partner','intermediary','other']}) @IsOptional() @IsIn(['unspecified','supplier','customer','partner','intermediary','other']) partyType?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(200) registrationNumber?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(200) contactName?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(254) @ValidateIf((_object,value)=>value!=='') @IsEmail() contactEmail?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(2000) businessActivity?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(4000) ownershipNotes?:string;
+
  @ApiProperty({enum:['third_party','assessment','gift','conflict','donation','control']}) @IsIn(['third_party','assessment','gift','conflict','donation','control']) kind!:string;
  @ApiProperty({format:'uuid'}) @IsUUID() siteId!:string;
  @ApiProperty({format:'uuid'}) @IsUUID() ownerId!:string;
@@ -32,6 +39,13 @@ export class EthicsQuestionnaireDto {
  @ApiPropertyOptional({enum:['yes','no','unknown']}) @IsOptional() @IsIn(['yes','no','unknown']) intermediary_use?:string;
 }
 export class UpdateEthicsDto {
+ @ApiPropertyOptional({enum:['unspecified','supplier','customer','partner','intermediary','other']}) @IsOptional() @IsIn(['unspecified','supplier','customer','partner','intermediary','other']) partyType?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(200) registrationNumber?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(200) contactName?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(254) @ValidateIf((_object,value)=>value!=='') @IsEmail() contactEmail?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(2000) businessActivity?:string;
+ @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(4000) ownershipNotes?:string;
+
  @ApiPropertyOptional() @IsOptional() @Matches(/^\d{1,12}(?:\.\d{1,2})?$/) amount?:string;
  @ApiPropertyOptional({enum:['EUR','XOF','XAF','MAD','USD','GBP']}) @IsOptional() @IsIn(['EUR','XOF','XAF','MAD','USD','GBP']) currency?:string;
  @ApiPropertyOptional({type:EthicsQuestionnaireDto}) @IsOptional() @ValidateNested() @Type(()=>EthicsQuestionnaireDto) questionnaire?:EthicsQuestionnaireDto;
