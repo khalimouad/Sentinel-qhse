@@ -2,13 +2,31 @@ import {BadRequestException,ConflictException,ForbiddenException,Injectable,NotF
 import {randomUUID} from 'node:crypto';
 import {Database} from '../database.js';
 import {actionColumns,actionJoins} from '../actions/action-query.js';
+import type {EthicsSummary} from '@sentinelle/contracts';
 import type {Principal} from '../auth.js';
 import {ControlTestQuery,CreateControlTestDto,CompleteControlTestDto,ControlTestActionDto} from './control-tests.dto.js';
-import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto} from './dto.js';
+import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto,EthicsSummaryQuery} from './dto.js';
 const columns=`e.id,e.kind,e.title,e.description,e.country,e.site_id AS "siteId",s.name AS "siteName",e.party_id AS "partyId",p.title AS "partyName",e.risk_id AS "riskId",r.title AS "linkedRiskTitle",e.risk,e.status,e.amount::text AS amount,e.currency,e.occurred_on::text AS "occurredOn",e.review_on::text AS "reviewOn",e.owner_id AS "ownerId",e.questionnaire,e.questionnaire_version AS "questionnaireVersion",e.decision,e.decision_note AS "decisionNote",e.decided_by AS "decidedBy",e.decided_at AS "decidedAt",e.revision,e.created_at AS "createdAt",e.updated_at AS "updatedAt"`;
 const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT JOIN app.ethics_records p ON p.id=e.party_id AND p.tenant_id=e.tenant_id LEFT JOIN app.risks r ON r.id=e.risk_id AND r.tenant_id=e.tenant_id';
 @Injectable() export class EthicsService {
  constructor(private readonly database:Database){}
+ summary(principal:Principal,tenant:string|undefined,query:EthicsSummaryQuery):Promise<EthicsSummary>{return this.database.withTenant(principal,tenant,async session=>{
+  if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
+  if(query.siteId){const site=await session.db.query('SELECT id FROM app.sites WHERE tenant_id=$1 AND id=$2',[session.tenant.id,query.siteId]);if(!site.rowCount)throw new NotFoundException('Site introuvable.');}
+  const {rows}=await session.db.query<EthicsSummary>(`WITH today AS (SELECT (statement_timestamp() AT TIME ZONE 'UTC')::date AS day),
+   records AS (SELECT e.* FROM app.ethics_records e WHERE e.tenant_id=$1 AND ($2::uuid IS NULL OR e.site_id=$2)),
+   tests AS (SELECT t.* FROM app.control_tests t JOIN records c ON c.id=t.control_id AND c.kind='control' WHERE t.tenant_id=$1),
+   actions AS (SELECT a.* FROM app.actions a JOIN tests t ON t.id=a.control_test_id WHERE a.tenant_id=$1)
+   SELECT statement_timestamp() AS "asOf",(SELECT day::text FROM today) AS "asOfDate",
+    (SELECT jsonb_build_object('total',count(*)::int,'withAssessment',count(*) FILTER(WHERE EXISTS(SELECT 1 FROM records a WHERE a.kind='assessment' AND a.party_id=p.id))::int,
+      'withoutAssessment',count(*) FILTER(WHERE NOT EXISTS(SELECT 1 FROM records a WHERE a.kind='assessment' AND a.party_id=p.id))::int,'highRisk',count(*) FILTER(WHERE p.risk='high')::int) FROM records p WHERE p.kind='third_party') AS "thirdParties",
+    (SELECT jsonb_build_object('total',count(*)::int,'awaitingDecision',count(*) FILTER(WHERE e.decision IS NULL)::int,'overdueReview',count(*) FILTER(WHERE e.status<>'closed' AND e.review_on<today.day)::int) FROM records e CROSS JOIN today WHERE e.kind='assessment') AS assessments,
+    (SELECT jsonb_build_object('gifts',count(*) FILTER(WHERE e.kind='gift')::int,'conflicts',count(*) FILTER(WHERE e.kind='conflict')::int,'donations',count(*) FILTER(WHERE e.kind='donation')::int,'awaitingDecision',count(*) FILTER(WHERE e.decision IS NULL AND e.status<>'closed')::int) FROM records e WHERE e.kind IN ('gift','conflict','donation')) AS declarations,
+    jsonb_build_object('total',(SELECT count(*)::int FROM records WHERE kind='control'),'plannedTests',(SELECT count(*)::int FROM tests WHERE status='planned'),
+      'overdueTests',(SELECT count(*)::int FROM tests t CROSS JOIN today WHERE t.status='planned' AND t.planned_on<today.day),
+      'completedTests',(SELECT count(*)::int FROM tests WHERE status='completed'),'nonEffectiveTests',(SELECT count(*)::int FROM tests WHERE status='completed' AND result IN ('partial','ineffective')),
+      'openActions',(SELECT count(*)::int FROM actions WHERE status='open')) AS controls`,[session.tenant.id,query.siteId||null]);return rows[0];
+ });}
  list(principal:Principal,tenant:string|undefined,query:EthicsQuery){return this.database.withTenant(principal,tenant,async session=>{
   if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
   const args=[session.tenant.id,query.kind,query.siteId||null,query.search||''];const where="WHERE e.tenant_id=$1 AND e.kind=$2 AND ($3::uuid IS NULL OR e.site_id=$3) AND ($4::text='' OR strpos(lower(e.title),lower($4))>0)";

@@ -5,6 +5,9 @@ import {startTestApi} from './support/api-server.mjs';
 let server;before(async()=>{server=await startTestApi();});after(async()=>{if(server)await server.close();});
 test('third parties, evaluations, gifts and conflicts can be recorded and followed',async()=>{
  const admin=await server.token(),reader=await server.token('aicha-meite'),prefix=randomUUID();const base={siteId:'30000000-0000-4000-8000-000000000001',ownerId:'20000000-0000-4000-8000-000000000001',description:'Éléments de revue',country:'CI'};
+ const beforeSummary=await (await server.request('ethics/summary',admin)).json();
+ assert.equal((await server.request('ethics/summary',reader)).status,403);
+ assert.equal((await server.request('ethics/summary',admin,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
  const create=async payload=>{const response=await server.request('ethics',admin,{method:'POST',body:JSON.stringify({...base,...payload})});assert.equal(response.status,201);return response.json();};
  const riskResponse=await server.request('risks',admin,{method:'POST',body:JSON.stringify({title:`Risque corruption ${prefix}`,description:'Risque de paiement indu',category:'corruption',siteId:base.siteId,ownerId:base.ownerId,inherentLikelihood:4,inherentSeverity:4,residualLikelihood:2,residualSeverity:3,controls:'Double validation',nextReviewOn:'2030-01-01',processName:'Achats',functionName:'Acheteur',country:'CI'})});assert.equal(riskResponse.status,201);const risk=(await riskResponse.json()).risk;assert.equal(risk.processName,'Achats');assert.equal(risk.country,'CI');
  const control=await create({kind:'control',title:'Contrôle des paiements',riskId:risk.id});assert.equal(control.linkedRiskTitle,risk.title);
@@ -13,6 +16,7 @@ test('third parties, evaluations, gifts and conflicts can be recorded and follow
  const plannedResponse=await server.request(testPath,admin,{method:'POST',body:JSON.stringify(planned)});assert.equal(plannedResponse.status,201);const testId=(await plannedResponse.json()).id;
  const retry=await server.request(testPath,admin,{method:'POST',body:JSON.stringify(planned)});assert.equal(retry.status,201);assert.equal((await retry.json()).id,testId);
  const tests=await (await server.request(testPath,admin)).json();assert.equal(tests.total,1);assert.equal(tests.items[0].status,'planned');
+ const overduePlan=await server.request(testPath,admin,{method:'POST',body:JSON.stringify({...planned,title:'Essai en retard',plannedOn:'2020-01-01',idempotencyKey:randomUUID()})});assert.equal(overduePlan.status,201);
  const result={revision:1,result:'partial',testedOn:'2030-02-01',evidenceReference:'Dossier contrôle 2026-01',conclusion:'Une anomalie à corriger'};
  assert.equal((await server.request(`${testPath}/${testId}/complete`,admin,{method:'POST',body:JSON.stringify(result)})).status,403);
  assert.equal((await server.request(`${testPath}/${testId}/complete`,tester,{method:'POST',body:JSON.stringify(result)})).status,201);
@@ -26,6 +30,7 @@ test('third parties, evaluations, gifts and conflicts can be recorded and follow
  const linkedActions=await (await server.request(actionPath,admin)).json();assert.equal(linkedActions.total,1);assert.equal(linkedActions.open,1);assert.equal(linkedActions.items[0].controlTestId,testId);
  const actionList=await (await server.request('actions?search=Corriger%20le%20contr%C3%B4le',admin)).json();assert.ok(actionList.items.some(item=>item.id===correctiveId));
  assert.equal((await server.request(`actions/${correctiveId}/history`,reader)).status,404);
+ const openSummary=await (await server.request(`ethics/summary?siteId=${base.siteId}`,admin)).json();assert.ok(openSummary.controls.openActions>=1);assert.ok(openSummary.controls.nonEffectiveTests>=1);
  const closeCorrective=await server.request(`actions/${correctiveId}`,admin,{method:'PATCH',body:JSON.stringify({version:linkedActions.items[0].version,status:'closed'})});assert.equal(closeCorrective.status,200);
  assert.equal((await (await server.request(actionPath,admin)).json()).open,0);
 
@@ -48,4 +53,9 @@ test('third parties, evaluations, gifts and conflicts can be recorded and follow
  assert.equal((await server.request('ethics?kind=third_party',reader)).status,403);assert.equal((await server.request('ethics?kind=third_party',admin,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
  assert.equal((await server.request('ethics',admin,{method:'POST',body:JSON.stringify({...base,kind:'assessment',title:'Sans tiers'})})).status,400);
  const list=await (await server.request(`ethics?kind=third_party&search=${prefix}`,admin)).json();assert.equal(list.total,10);
+ const summaryResponse=await server.request('ethics/summary',admin);assert.equal(summaryResponse.status,200);const summary=await summaryResponse.json();
+ assert.equal(summary.thirdParties.total,beforeSummary.thirdParties.total+10);assert.equal(summary.thirdParties.withAssessment,beforeSummary.thirdParties.withAssessment+1);assert.equal(summary.thirdParties.withoutAssessment,beforeSummary.thirdParties.withoutAssessment+9);
+ assert.equal(summary.assessments.total,beforeSummary.assessments.total+1);assert.equal(summary.declarations.gifts,beforeSummary.declarations.gifts+1);assert.equal(summary.declarations.conflicts,beforeSummary.declarations.conflicts+1);assert.equal(summary.declarations.donations,beforeSummary.declarations.donations+1);
+ assert.equal(summary.controls.total,beforeSummary.controls.total+1);assert.equal(summary.controls.plannedTests,beforeSummary.controls.plannedTests+1);assert.equal(summary.controls.overdueTests,beforeSummary.controls.overdueTests+1);assert.equal(summary.controls.completedTests,beforeSummary.controls.completedTests+1);assert.equal(summary.controls.nonEffectiveTests,beforeSummary.controls.nonEffectiveTests+1);assert.equal(summary.controls.openActions,beforeSummary.controls.openActions);
+
 });

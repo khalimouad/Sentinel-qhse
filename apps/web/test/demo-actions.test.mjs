@@ -34,3 +34,7 @@ test('demo document candidate search and reminder history stay local',async()=>{
  const history=await demoApi(`documents/${doc.id}/versions/${version}/distribution/${context.actor.id}/reminders`,context.tenant.id);
  assert.equal(history.total,0);
 });
+test('demo anticorruption summary reflects an empty sample register',async()=>{
+ const context=await demoApi('context');const summary=await demoApi('ethics/summary',context.tenant.id);
+ assert.equal(summary.thirdParties.total,0);assert.equal(summary.controls.openActions,0);
+});

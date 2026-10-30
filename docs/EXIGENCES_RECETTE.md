@@ -125,3 +125,7 @@ Les essais de contrôle anticorruption peuvent être planifiés et réalisés av
 ## Avancement technique — RSK-02, actions correctives
 
 Un essai de contrôle partiellement efficace ou non efficace peut générer une action visible dans le plan commun. Le scénario local couvre création, reprise et clôture. Les justificatifs et la recette métier restent nécessaires ; l'exigence demeure non validée.
+
+## Avancement technique — AC-02 à AC-06, suivi consolidé
+
+Une vue consolidée présente les dossiers et activités anticorruption enregistrés, les évaluations et décisions en attente, les essais et actions. Des tests locaux couvrent les agrégats. Elle ne remplace pas la recette des parcours ni les rapports de gouvernance requis ; les exigences demeurent non validées.

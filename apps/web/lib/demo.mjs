@@ -50,7 +50,7 @@ export async function demoApi(path,tenantId,options={}){
    if(method==='POST'){let comment=s.comments.find(x=>x.actionId===id&&x.key===input.idempotencyKey);if(!comment){comment={id:crypto.randomUUID(),actionId:id,authorId:members[0].id,authorName:members[0].name,body:input.body,createdAt:now(),key:input.idempotencyKey};s.comments.push(comment);}result=comment;}else result=page(s.comments.filter(x=>x.actionId===id).slice().reverse(),q);
   }else if(method==='PATCH'){if(item.version!==input.version)throw new Error('Cette action a changé. Actualisez.');const before=structuredClone(item);item.status=input.status;item.version++;item.updatedAt=now();history(s,id,before,item,'UPDATE');result=item;}else result=item;
  }
- else if(kind==='ethics'){if(method!=='GET')unsupported();result={items:[],total:0};}
+ else if(kind==='ethics'){if(method!=='GET')unsupported();result=id==='summary'?{asOf:now(),asOfDate:day(),thirdParties:{total:0,withAssessment:0,withoutAssessment:0,highRisk:0},assessments:{total:0,awaitingDecision:0,overdueReview:0},declarations:{gifts:0,conflicts:0,donations:0,awaitingDecision:0},controls:{total:0,plannedTests:0,overdueTests:0,completedTests:0,nonEffectiveTests:0,openActions:0}}:{items:[],total:0};}
  else if(kind==='attachments'){if(method!=='GET')unsupported();result={items:[],canUpload:false,uploadEnabled:false,maxBytes:0,maxFiles:0};}
  else if(kind==='notifications')result=id==='unread-count'?{unread:0}:{items:[],total:0,unread:0};
  else if(kind==='audit-templates'||kind==='auditor-qualifications'){if(method!=='GET')unsupported();result=id?[]:{items:[],total:0};}

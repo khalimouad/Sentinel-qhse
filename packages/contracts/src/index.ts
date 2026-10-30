@@ -173,3 +173,11 @@ export interface Obligation {
 export interface ObligationList {items:Obligation[];total:number;unverified:number;overdue:number}
 
 export interface ObligationActionList extends ActionList {open:number}
+
+export interface EthicsSummary {
+ asOf:string; asOfDate:string;
+ thirdParties:{total:number;withAssessment:number;withoutAssessment:number;highRisk:number};
+ assessments:{total:number;awaitingDecision:number;overdueReview:number};
+ declarations:{gifts:number;conflicts:number;donations:number;awaitingDecision:number};
+ controls:{total:number;plannedTests:number;overdueTests:number;completedTests:number;nonEffectiveTests:number;openActions:number};
+}

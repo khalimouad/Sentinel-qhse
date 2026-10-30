@@ -45,3 +45,5 @@ export class EthicsDecisionDto {
  @ApiProperty({enum:['approve','reject','conditional']}) @IsIn(['approve','reject','conditional']) decision!:string;
  @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(4000) note!:string;
 }
+
+export class EthicsSummaryQuery { @ApiPropertyOptional({format:'uuid'}) @IsOptional() @IsUUID() siteId?:string; }

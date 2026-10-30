@@ -294,3 +294,9 @@ La migration 039 est installée sur Supabase de test. Le build et 35 tests d'int
 Un essai de contrôle terminé avec résultat partiel ou non efficace peut générer une action corrective avec responsable, priorité et échéance. L'action apparaît dans le plan d'actions commun et dans l'essai ; son état et son historique suivent les mécanismes existants. Une clé d'envoi permet une reprise sans doublon. Le lien conserve le périmètre du contrôle et ses restrictions de visibilité.
 
 La migration 040 est appliquée sur Supabase de test. Le build et 35 tests d'intégration locaux ont réussi, notamment création, reprise, accès restreint, présence dans le plan et clôture. La recette navigateur, les justificatifs binaires et l'API hébergée restent à finaliser. La création d'une action ne modifie pas automatiquement le résultat historique de l'essai.
+
+## Anticorruption — vue consolidée métier
+
+L'espace Anticorruption présente des indicateurs calculés sur les données autorisées du site ou de l'entreprise : tiers enregistrés et sans évaluation, évaluations sans décision ou à revoir, déclarations, contrôles, essais en retard ou non efficaces et actions correctives ouvertes. Ces chiffres sont calculés côté serveur sur l'ensemble du périmètre, indépendamment des pages affichées ; la date de référence des retards est UTC. Ils ne constituent pas un taux de conformité. Les cartes permettent d'accéder aux registres correspondants et sont actualisées après les opérations de contrôle depuis cette page.
+
+Le build, les tests de démonstration et 35 tests d'intégration locaux ont réussi. Le scénario métier vérifie les variations de compteurs sur dix tiers, une évaluation, des déclarations, des essais et une action. Aucune migration n'est requise. Les filtres avancés, exports de synthèse, alertes automatiques, recette navigateur et API hébergée restent à réaliser.
