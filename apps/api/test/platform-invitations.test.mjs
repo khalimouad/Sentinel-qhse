@@ -45,3 +45,32 @@ test('platform invitation scope, idempotency and cancellation',async()=>{
   if(createdAdmin)await owner.query('DELETE FROM identity.platform_admins WHERE user_id=$1',[actor]).catch(()=>{});await owner.end();
  }
 });
+
+test('delivery state prevents duplicate reservation and stale outcomes',async()=>{
+ const privileged=new pg.Client({connectionString:process.env.DATABASE_ADMIN_URL});
+ const runtime=new pg.Client({connectionString:process.env.DATABASE_URL});
+ await privileged.connect();await runtime.connect();
+ try{
+  await privileged.query('BEGIN');
+  await privileged.query('INSERT INTO identity.platform_admins(user_id) VALUES($1) ON CONFLICT DO NOTHING',[actor]);
+  await privileged.query("SELECT set_config('app.actor_id',$1,true)",[actor]);
+  const body={email:'test@example.test',name:'Test',role:'reader',allSites:false,siteIds:[site]};
+  const created=(await privileged.query('SELECT identity.platform_invitation_create($1,$2,$3,$4) AS result',[tenant,body,randomUUID(),'Recette'])).rows[0].result;
+  const attempt=randomUUID();
+  const reserved=(await privileged.query('SELECT identity.platform_invitation_reserve($1,$2,$3) AS result',[tenant,created.id,attempt])).rows[0].result;
+  assert.equal(reserved.status,'sending');
+  await privileged.query('SAVEPOINT repeat_attempt');
+  await assert.rejects(privileged.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,created.id,randomUUID()]),{code:'40001'});
+  await privileged.query('ROLLBACK TO SAVEPOINT repeat_attempt');
+  await privileged.query('SAVEPOINT old_attempt');
+  await assert.rejects(privileged.query('SELECT identity.platform_invitation_record_outcome($1,$2,$3,$4,$5)',[tenant,created.id,randomUUID(),'sent',randomUUID()]),{code:'40001'});
+  await privileged.query('ROLLBACK TO SAVEPOINT old_attempt');
+  const outcome=(await privileged.query('SELECT identity.platform_invitation_record_outcome($1,$2,$3,$4,$5) AS result',[tenant,created.id,attempt,'uncertain',null])).rows[0].result;
+  assert.equal(outcome.status,'uncertain');
+  await privileged.query('SAVEPOINT no_automatic_retry');
+  await assert.rejects(privileged.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,created.id,randomUUID()]),{code:'40001'});
+  await privileged.query('ROLLBACK TO SAVEPOINT no_automatic_retry');
+  await runtime.query('BEGIN');await runtime.query("SELECT set_config('app.actor_id',$1,true)",[actor]);
+  await assert.rejects(runtime.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,created.id,randomUUID()]),{code:'42501'});
+ }finally{await privileged.query('ROLLBACK').catch(()=>{});await runtime.query('ROLLBACK').catch(()=>{});await privileged.end();await runtime.end();}
+});
