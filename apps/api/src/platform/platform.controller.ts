@@ -1,7 +1,7 @@
 import { Body,Controller,Get,Param,ParseUUIDPipe,Post,Query,Req,UseGuards } from '@nestjs/common';
 import { ApiBearerAuth,ApiTags } from '@nestjs/swagger';
 import { IdentityGuard,type AuthenticatedRequest } from '../auth.js';
-import { PlatformInvitationDto,PlatformAccountQuery,PlatformHistoryQuery,CompanyDto,CompanyMetadataDto,SiteMetadataDto,PlatformAccountDto,PlatformAccessDto,PlatformQuery,PlatformSiteDto } from './dto.js';
+import { CancelPlatformInvitationDto,PlatformInvitationDto,PlatformAccountQuery,PlatformHistoryQuery,CompanyDto,CompanyMetadataDto,SiteMetadataDto,PlatformAccountDto,PlatformAccessDto,PlatformQuery,PlatformSiteDto } from './dto.js';
 import { PlatformService } from './platform.service.js';
 @ApiTags('Platform administration') @ApiBearerAuth() @Controller('platform') @UseGuards(IdentityGuard)
 export class PlatformController {
@@ -12,6 +12,7 @@ export class PlatformController {
  @Get('companies/:id') detail(@Req() req:AuthenticatedRequest,@Param('id',new ParseUUIDPipe()) id:string){return this.platform.detail(req.principal,id);}
  @Get('companies/:id/invitations') invitations(@Req() req:AuthenticatedRequest,@Param('id',new ParseUUIDPipe()) id:string,@Query() query:PlatformQuery){return this.platform.invitations(req.principal,id,query);}
  @Post('companies/:id/invitations') requestInvitation(@Req() req:AuthenticatedRequest,@Param('id',new ParseUUIDPipe()) id:string,@Body() body:PlatformInvitationDto){return this.platform.requestInvitation(req.principal,id,body);}
+ @Post('companies/:id/invitations/:invitationId/cancel') cancelInvitation(@Req() req:AuthenticatedRequest,@Param('id',new ParseUUIDPipe()) id:string,@Param('invitationId',new ParseUUIDPipe()) invitationId:string,@Body() body:CancelPlatformInvitationDto){return this.platform.cancelInvitation(req.principal,id,invitationId,body);}
  @Get('companies/:id/accounts') accounts(@Req() req:AuthenticatedRequest,@Param('id',new ParseUUIDPipe()) id:string,@Query() query:PlatformAccountQuery){return this.platform.accounts(req.principal,id,query);}
  @Get('companies/:id/history') history(@Req() req:AuthenticatedRequest,@Param('id',new ParseUUIDPipe()) id:string,@Query() query:PlatformHistoryQuery){return this.platform.history(req.principal,id,query);}
  @Post('companies/:id/metadata') companyMetadata(@Req() req:AuthenticatedRequest,@Param('id',new ParseUUIDPipe()) id:string,@Body() body:CompanyMetadataDto){return this.platform.metadata(req.principal,id,null,body);}

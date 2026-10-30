@@ -52,3 +52,5 @@ export class PlatformInvitationDto extends AccessFields {
  @Transform(trim) @IsEmail() @MaxLength(254) email!:string;
  @IsUUID() idempotencyKey!:string;
 }
+
+export class CancelPlatformInvitationDto extends ReasonDto {}
