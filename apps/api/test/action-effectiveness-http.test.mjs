@@ -1,0 +1,22 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {startTestApi} from './support/api-server.mjs';
+let server;before(async()=>{server=await startTestApi();});after(async()=>{if(server)await server.close();});
+test('independent effectiveness evidence is idempotent and invalidated on reopening',async()=>{
+ const owner=await server.token(),verifier=await server.token('fatima-k'),reader=await server.token('aicha-meite');
+ const created=await server.request('actions',owner,{method:'POST',body:JSON.stringify({title:'Efficacité recette',siteId:'30000000-0000-4000-8000-000000000001',ownerId:'20000000-0000-4000-8000-000000000001',priority:'normal'})});assert.equal(created.status,201);let action=await created.json();const path=`actions/${action.id}/effectiveness`,key=randomUUID();
+ const payload=()=>JSON.stringify({version:action.version,result:'effective',evidence:'Contrôle réalisé',idempotencyKey:key});
+ assert.equal((await server.request(path,verifier,{method:'POST',body:payload()})).status,409);
+ let res=await server.request(`actions/${action.id}`,owner,{method:'PATCH',body:JSON.stringify({version:action.version,status:'closed'})});assert.equal(res.status,200);action=await res.json();
+ assert.equal((await server.request(path,owner,{method:'POST',body:payload()})).status,403);
+ assert.equal((await server.request(path,reader,{method:'POST',body:payload()})).status,403);
+ res=await server.request(path,verifier,{method:'POST',body:payload()});assert.equal(res.status,201);const first=await res.json();
+ res=await server.request(path,verifier,{method:'POST',body:payload()});assert.equal(res.status,201);assert.equal((await res.json()).id,first.id);
+ assert.equal((await server.request(path,verifier,{method:'POST',body:JSON.stringify({version:action.version,result:'ineffective',evidence:'Autre',idempotencyKey:key})})).status,409);
+ let list=await (await server.request(path,verifier)).json();assert.equal(list.total,1);assert.equal(list.items[0].current,true);
+ res=await server.request(`actions/${action.id}`,owner,{method:'PATCH',body:JSON.stringify({version:action.version,status:'open'})});assert.equal(res.status,200);action=await res.json();
+ list=await (await server.request(path,verifier)).json();assert.equal(list.items[0].current,false);
+ assert.equal((await server.request(path,verifier,{method:'POST',body:JSON.stringify({version:action.version-1,result:'effective',evidence:'Ancien',idempotencyKey:randomUUID()})})).status,409);
+ assert.equal((await server.request(path,verifier,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
+});

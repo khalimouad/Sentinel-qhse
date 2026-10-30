@@ -45,6 +45,7 @@ export async function demoApi(path,tenantId,options={}){
   else if(!id)result=method==='POST'?action(input):page(filter(s.actions,q).filter(item=>!q.get('status')||item.status===q.get('status')),q);
   else if(!item)throw new Error('Action de démonstration introuvable.');
   else if(command==='history')result=s.history[id]||[];
+  else if(command==='effectiveness'){if(method==='POST')unsupported();result={items:[],total:0};}
   else if(command==='comments'){
    if(method==='POST'){let comment=s.comments.find(x=>x.actionId===id&&x.key===input.idempotencyKey);if(!comment){comment={id:crypto.randomUUID(),actionId:id,authorId:members[0].id,authorName:members[0].name,body:input.body,createdAt:now(),key:input.idempotencyKey};s.comments.push(comment);}result=comment;}else result=page(s.comments.filter(x=>x.actionId===id).slice().reverse(),q);
   }else if(method==='PATCH'){if(item.version!==input.version)throw new Error('Cette action a changé. Actualisez.');const before=structuredClone(item);item.status=input.status;item.version++;item.updatedAt=now();history(s,id,before,item,'UPDATE');result=item;}else result=item;

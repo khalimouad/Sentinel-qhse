@@ -81,3 +81,7 @@ Le registre documentaire est paginé ; les responsables du site peuvent consulte
 ## Avancement technique — SOC-05 et INT-02
 
 Le registre des signalements et son export CSV sont filtrables et respectent la confidentialité propre au déclarant. Un test API/PostgreSQL local a parcouru plusieurs pages et comparé les résultats d'un responsable et d'un lecteur. Il ne remplace pas la recette navigateur ni l'export intégral incluant les pièces jointes ; les exigences restent non validées.
+
+## Avancement technique — SOC-06
+
+Une vérification motivée et indépendante peut être ajoutée à une version clôturée d'action. L'historique est conservé et une réouverture invalide la décision courante ; un test API/PostgreSQL local vérifie rôles, reprise et changement de version. La recette navigateur, les pièces justificatives et les relances restent nécessaires ; l'exigence n'est pas validée.
