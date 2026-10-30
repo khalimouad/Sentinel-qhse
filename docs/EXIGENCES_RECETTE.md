@@ -77,3 +77,7 @@ Le dossier de signalement inclut les 5 pourquoi et six familles Ishikawa, enregi
 ## Avancement technique — SOC-01
 
 Le registre documentaire est paginé ; les responsables du site peuvent consulter les confirmations horodatées d'une version publiée ou archivée. Un test API/PostgreSQL local couvre publication, confirmation idempotente et restriction des accès. La diffusion ciblée, les relances, la signature et la recette navigateur restent à réaliser ; l'exigence reste non validée.
+
+## Avancement technique — SOC-05 et INT-02
+
+Le registre des signalements et son export CSV sont filtrables et respectent la confidentialité propre au déclarant. Un test API/PostgreSQL local a parcouru plusieurs pages et comparé les résultats d'un responsable et d'un lecteur. Il ne remplace pas la recette navigateur ni l'export intégral incluant les pièces jointes ; les exigences restent non validées.

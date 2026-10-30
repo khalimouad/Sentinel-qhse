@@ -4,7 +4,7 @@ import type { Action, Report, ReportDetail, ReportEvent, ReportList } from '@sen
 import { Database, type TenantSession } from '../database.js';
 import type { Principal } from '../auth.js';
 import { actionColumns,actionJoins } from '../actions/action-query.js';
-import { AnalyzeReportDto,CreateReportDto,DecideReportDto,ReportActionDto,ReportQuery } from './dto.js';
+import { AnalyzeReportDto,CreateReportDto,DecideReportDto,ReportActionDto,ReportExportQuery, ReportQuery } from './dto.js';
 import { decideReport,ReportWorkflowError,validateCost } from './workflow.mjs';
 
 const columns=`r.id,r.title,r.description,r.kind,r.severity,r.site_id AS "siteId",s.name AS "siteName",r.occurred_at AS "occurredAt",r.reported_by AS "reportedBy",r.status,
@@ -37,6 +37,16 @@ export class ReportsService {
       const count=await session.db.query(`SELECT count(*)::integer AS total FROM app.reports r ${where}`,params);
       const result=await session.db.query<Report>(`SELECT ${columns} ${joins} ${where} ORDER BY r.created_at DESC,r.id LIMIT $5 OFFSET $6`,[...params,query.limit,query.offset]);
       return { items:result.rows,total:count.rows[0].total };
+    });
+  }
+  export(principal: Principal,tenant: string|undefined,query: ReportExportQuery):Promise<ReportList> {
+    return this.database.withTenant(principal,tenant,async session=>{
+      const args=[session.tenant.id,query.siteId||null,query.status||null,query.search||''];
+      const {rows}=await session.db.query<Report>(`SELECT ${columns} ${joins}
+        WHERE r.tenant_id=$1 AND ($2::uuid IS NULL OR r.site_id=$2) AND ($3::text IS NULL OR r.status=$3)
+        AND ($4::text='' OR strpos(lower(r.title),lower($4))>0) ORDER BY r.created_at DESC,r.id LIMIT 10001`,args);
+      if(rows.length>10000)throw new BadRequestException('L’export dépasse 10 000 signalements. Affinez les filtres.');
+      return {items:rows,total:rows.length};
     });
   }
   detail(principal: Principal,tenant: string|undefined,id: string) { return this.database.withTenant(principal,tenant,session=>this.detailIn(session,id)); }

@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import type { Priority, ReportCommand, ReportCurrency, ReportKind, ReportSeverity, ReportStatus } from '@sentinelle/contracts';
 const trim=({ value }: { value: unknown })=>typeof value==='string' ? value.trim() : value;
 export class CreateReportDto {
@@ -54,3 +54,5 @@ export class ReportQuery {
   @ApiPropertyOptional({ default:100 }) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=100;
   @ApiPropertyOptional({ default:0 }) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
 }
+
+export class ReportExportQuery extends OmitType(ReportQuery,['limit','offset'] as const) {}

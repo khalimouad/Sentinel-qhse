@@ -220,3 +220,9 @@ Les migrations ont été appliquées localement et sur le projet Supabase de tes
 Le registre documentaire charge les documents autorisés par pages de 25, avec recherche et filtre de site côté serveur. Les documents au-delà des 100 plus récents restent accessibles. Pour chaque version publiée ou archivée, les responsables habilités du site peuvent consulter les accusés de lecture horodatés, avec pagination. Les lecteurs ne peuvent pas consulter la liste des autres personnes ; les confirmations restent idempotentes. Cette vue montre les lectures reçues : elle ne détermine pas encore une population cible ni les personnes à relancer.
 
 Le build complet et un test API/PostgreSQL du circuit publication, lecture, contrôle de rôle, isolation d'entreprise et pagination ont réussi. Une recette navigateur reste à réaliser. La diffusion ciblée et les relances par courriel restent ouvertes ; SOC-01 n'est pas encore validée.
+
+## Lot 2 — registre et export des signalements
+
+La liste des incidents, presque-accidents, non-conformités et réclamations est paginée par 25. Les filtres de titre, statut et site sont appliqués avant pagination et respectent les politiques de confidentialité des signalements. Un export CSV reprend tous les résultats visibles correspondant aux filtres, sans les pièces jointes ni le journal complet ; au-delà de 10 000 lignes, il refuse l'export et demande d'affiner les filtres. Les cellules sont échappées et les formules de tableur neutralisées.
+
+Le build complet et les tests API/PostgreSQL ciblés ont réussi : 27 signalements sur deux pages, absence de doublons, filtre de statut, visibilité limitée au propre signalement d'un lecteur, export correspondant et refus d'un autre tenant. La recette navigateur et l'export intégral des données et fichiers restent à réaliser.

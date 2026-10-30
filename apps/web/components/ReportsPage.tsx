@@ -5,6 +5,7 @@ import type { Action,Report,ReportCommand,ReportDetail,ReportEvent,ReportKind,Re
 import { api } from '../lib/use-workspace';
 import AttachmentsPanel from './AttachmentsPanel';
 import ActionDiscussion from './ActionDiscussion';
+import { downloadRegisterCsv } from '../lib/register-csv.mjs';
 
 const kinds:Record<ReportKind,string>={ incident:'Incident',near_miss:'Presque-accident',nonconformity:'Non-conformité',complaint:'Réclamation' };
 const causeFamilies=[['people','Main-d’œuvre'],['methods','Méthodes'],['machines','Machines'],['materials','Matières'],['environment','Milieu'],['measurement','Mesures']] as const;
@@ -14,6 +15,8 @@ const errorMessage=(e:unknown)=>e instanceof Error ? e.message : 'L’opération
 export default function ReportsPage({ context,siteName,onActionsChanged,initialReportId }: { context:WorkspaceContext;siteName:string;onActionsChanged:()=>Promise<void>;initialReportId?:string }) {
   const tenant=context.tenant.id;
   const [reports,setReports]=useState<Report[]>([]);
+  const [page,setPage]=useState(0);
+  const [total,setTotal]=useState(0);
   const [detail,setDetail]=useState<ReportDetail|null>(null);
   const [search,setSearch]=useState('');
   const [status,setStatus]=useState('');
@@ -27,25 +30,25 @@ export default function ReportsPage({ context,siteName,onActionsChanged,initialR
   const [discussion,setDiscussion]=useState<{id:string;title:string}|null>(null);
   const selection=useRef(0);
   const listScope=useRef('');
-  listScope.current=`${tenant}|${siteName}|${search}|${status}`;
+  listScope.current=`${tenant}|${siteName}|${search}|${status}|${page}`;
   const report=detail?.report;
   const name=(id:string|null)=>context.members.find(member=>member.id===id)?.name || 'À désigner';
   const eligible=report ? context.documentReviewers[report.siteId] || [] : [];
   const loadList=useCallback(async(signal?:AbortSignal)=>{
-    const scope=`${tenant}|${siteName}|${search}|${status}`;
-    const params=new URLSearchParams({ search,limit:'100' });
+    const scope=`${tenant}|${siteName}|${search}|${status}|${page}`;
+    const params=new URLSearchParams({ search,limit:'25',offset:String(page*25) });
     const site=context.sites.find(item=>item.name===siteName);
     if(site) params.set('siteId',site.id);
     if(status) params.set('status',status);
-    const result=await api<{ items:Report[] }>(`reports?${params}`,tenant,{ signal });
-    if(!signal?.aborted&&listScope.current===scope) setReports(result.items);
-  },[tenant,context.sites,siteName,search,status]);
+    const result=await api<{ items:Report[];total:number }>(`reports?${params}`,tenant,{ signal });
+    if(!signal?.aborted&&listScope.current===scope) {setReports(result.items);setTotal(result.total);if(page>0&&page*25>=result.total)setPage(Math.max(0,Math.ceil(result.total/25)-1));}
+  },[tenant,context.sites,siteName,search,status,page]);
   useEffect(()=>{
     const controller=new AbortController(); setLoading(true); setError('');
     const timer=setTimeout(()=>{ void loadList(controller.signal).catch(e=>{if(!controller.signal.aborted) setError(errorMessage(e));}).finally(()=>{if(!controller.signal.aborted) setLoading(false);}); },200);
     return()=>{clearTimeout(timer);controller.abort();};
   },[loadList]);
-  useEffect(()=>{selection.current++;setDetail(null);setHistory(null);setForm(null);setAnalysisDirty(false);setDiscussion(null);},[siteName]);
+  useEffect(()=>{selection.current++;setDetail(null);setHistory(null);setForm(null);setAnalysisDirty(false);setDiscussion(null);setPage(0);},[siteName]);
   useEffect(()=>()=>{selection.current++;},[]);
   const openReport=useCallback(async(id:string)=>{
     const request=++selection.current;setError('');setHistory(null);setDetail(null);setAnalysisDirty(false);
@@ -94,14 +97,21 @@ export default function ReportsPage({ context,siteName,onActionsChanged,initialR
     const saved=await api<ReportDetail>(`reports/${report.id}`,tenant);
     if(request===selection.current){setDetail(saved);setHistory(null);await loadList();}
   }
+  async function exportFiltered(){
+    setPending(true);setError('');
+    try{const params=new URLSearchParams({search});const site=context.sites.find(item=>item.name===siteName);if(site)params.set('siteId',site.id);if(status)params.set('status',status);
+      const result=await api<{items:Report[];total:number}>(`reports/export?${params}`,tenant);downloadRegisterCsv('reports',result.items);
+    }catch(e){setError(errorMessage(e));}finally{setPending(false);}
+  }
   return <div className="module-page reports-page">
     <div className="module-header"><div><div className="eyebrow"><span className="live-dot"/> SOCLE COMMUN · AMÉLIORATION CONTINUE</div><h1>Incidents & non-conformités</h1><p className="welcome-sub">Déclarer, comprendre les causes, agir et vérifier l’efficacité.</p></div><button className="button button-primary" disabled={pending||fileBusy||!context.sites.length} onClick={()=>{setForm('report');setError('');}}><Plus size={15}/> Déclarer</button></div>
     {!context.canWrite&&<p className="report-privacy">Vous pouvez déclarer un événement et suivre vos propres signalements. Les responsables habilités traitent leur analyse et leur clôture.</p>}
     {fileBusy&&<p className="attachments-progress" role="status">Une opération sur les pièces jointes est en cours.</p>}
     {error&&<p className="document-error" role="alert">{error}</p>}
+    <button type="button" className="button button-outline" disabled={loading||pending||fileBusy||!total} onClick={()=>void exportFiltered()}>Exporter les signalements filtrés · CSV</button>
     <div className="documents-layout">
-      <section className="panel documents-list" aria-label="Liste des signalements"><div className="documents-toolbar"><Search size={15}/><input aria-label="Rechercher un signalement" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher un titre"/></div><label className="report-filter">Statut<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Tous</option>{Object.entries(states).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
-        {loading?<p className="documents-empty" role="status">Chargement…</p>:reports.length?reports.map(item=><button key={item.id} disabled={pending||fileBusy} className={`document-list-item ${report?.id===item.id?'selected':''}`} onClick={()=>void openReport(item.id)}><span className="document-code">{kinds[item.kind]} · {severities[item.severity]}</span><b>{item.title}</b><span className="document-list-meta"><span>{item.siteName}</span><span className={`document-status ${item.status==='closed'?'status-published':''}`}>{states[item.status]}</span></span></button>):<p className="documents-empty">Aucun signalement accessible dans ce périmètre.</p>}<p className="document-list-foot">100 signalements les plus récents au maximum.</p>
+      <section className="panel documents-list" aria-label="Liste des signalements"><div className="documents-toolbar"><Search size={15}/><input aria-label="Rechercher un signalement" value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}} placeholder="Rechercher un titre"/></div><label className="report-filter">Statut<select value={status} onChange={e=>{setStatus(e.target.value);setPage(0);}}><option value="">Tous</option>{Object.entries(states).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
+        {loading?<p className="documents-empty" role="status">Chargement…</p>:reports.length?reports.map(item=><button key={item.id} disabled={pending||fileBusy} className={`document-list-item ${report?.id===item.id?'selected':''}`} onClick={()=>void openReport(item.id)}><span className="document-code">{kinds[item.kind]} · {severities[item.severity]}</span><b>{item.title}</b><span className="document-list-meta"><span>{item.siteName}</span><span className={`document-status ${item.status==='closed'?'status-published':''}`}>{states[item.status]}</span></span></button>):<p className="documents-empty">Aucun signalement accessible dans ce périmètre.</p>}<div className="pagination"><span>{total} signalement(s) · page {page+1} sur {Math.max(1,Math.ceil(total/25))}</span><button type="button" className="button button-outline" disabled={loading||pending||fileBusy||page===0} onClick={()=>setPage(value=>value-1)}>Précédent</button><button type="button" className="button button-outline" disabled={loading||pending||fileBusy||(page+1)*25>=total} onClick={()=>setPage(value=>value+1)}>Suivant</button></div>
       </section>
       <section className="panel document-detail" aria-label="Détail du signalement">
         {!report||!detail?<div className="document-start"><ShieldCheck size={32}/><h2>De la déclaration à la prévention</h2><p>Déclarez un événement ou sélectionnez un signalement pour suivre son traitement.</p><div className="document-flow">Déclaration → Analyse → Actions → Efficacité → Clôture</div></div>:<>
