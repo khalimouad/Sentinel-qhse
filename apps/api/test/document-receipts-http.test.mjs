@@ -9,7 +9,15 @@ test('published version receipts are paginated and restricted to site managers',
  assert.equal(make.status,201);let detail=await make.json();const id=detail.document.id,version=detail.versions[0].id,path=`documents/${id}/versions/${version}`;
  assert.equal((await server.request(`${path}/acknowledgements`,author)).status,409);
  for(const [command,actor] of [['submit',author],['verify',reviewer],['approve',approver]]) {const res=await server.request(`${path}/decisions`,actor,{method:'POST',body:JSON.stringify({revision:detail.versions[0].revision,command})});assert.equal(res.status,201);detail=await res.json();}
+ const targets=`${path}/distribution`,readerId='20000000-0000-4000-8000-000000000002',otherId='20000000-0000-4000-8000-000000000004';
+ assert.equal((await server.request(targets,reader,{method:'POST',body:JSON.stringify({recipientIds:[readerId]})})).status,403);
+ assert.equal((await server.request(targets,author,{method:'POST',body:JSON.stringify({recipientIds:[readerId,otherId]})})).status,400);
+ assert.equal((await (await server.request(targets,author)).json()).total,0);
+ for(let i=0;i<2;i++)assert.equal((await server.request(targets,author,{method:'POST',body:JSON.stringify({recipientIds:[readerId]})})).status,201);
+ let distribution=await (await server.request(targets,author)).json();assert.equal(distribution.total,1);assert.equal(distribution.acknowledged,0);
+ assert.equal((await server.request(targets,reader)).status,403);
  for(let i=0;i<2;i++)assert.equal((await server.request(`${path}/acknowledgements`,reader,{method:'POST',body:'{}'})).status,201);
+ distribution=await (await server.request(targets,author)).json();assert.equal(distribution.acknowledged,1);assert.ok(distribution.items[0].acknowledgedAt);
  assert.equal((await server.request(`${path}/acknowledgements`,reader)).status,403);
  assert.equal((await server.request(`${path}/acknowledgements`,author,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
  const list=await server.request(`${path}/acknowledgements?limit=1&offset=0`,author);assert.equal(list.status,200);const data=await list.json();assert.equal(data.total,1);assert.equal(data.items[0].userName,'Aïcha Méité');

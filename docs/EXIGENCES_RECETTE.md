@@ -85,3 +85,7 @@ Le registre des signalements et son export CSV sont filtrables et respectent la 
 ## Avancement technique — SOC-06
 
 Une vérification motivée et indépendante peut être ajoutée à une version clôturée d'action. L'historique est conservé et une réouverture invalide la décision courante ; un test API/PostgreSQL local vérifie rôles, reprise et changement de version. La recette navigateur, les pièces justificatives et les relances restent nécessaires ; l'exigence n'est pas validée.
+
+## Avancement technique — SOC-01, diffusion ciblée
+
+Des destinataires habilités peuvent être désignés sur une version publiée ; leur confirmation est rapprochée de la liste nominative. Des tests API/PostgreSQL locaux couvrent droits, doublons et confirmation. Les notifications, relances, annulations et la recette navigateur restent ouvertes : SOC-01 demeure non validée.

@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { DocumentCommand } from '@sentinelle/contracts';
 export class VersionInput {
@@ -35,4 +35,8 @@ export class DocumentQuery {
 export class ReceiptQuery {
   @ApiPropertyOptional({ default: 25 }) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;
   @ApiPropertyOptional({ default: 0 }) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
+}
+
+export class DocumentDistributionDto {
+  @ApiProperty({type:[String],maxItems:100}) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @ArrayUnique() @IsUUID('4',{each:true}) recipientIds!:string[];
 }

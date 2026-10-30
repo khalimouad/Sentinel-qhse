@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { DocumentDetail, DocumentEvent, DocumentList, DocumentSummary, DocumentVersion } from '@sentinelle/contracts';
 import { Database, type TenantSession } from '../database.js';
 import type { Principal } from '../auth.js';
-import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, VersionInput } from './dto.js';
+import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, DocumentDistributionDto, VersionInput } from './dto.js';
 import { decideDocument, DocumentWorkflowError, validateParticipants } from './workflow.mjs';
 
 const documentColumns = `d.id,d.code,d.title,d.site_id AS "siteId",s.name AS "siteName",d.last_version AS "lastVersion",v.status,d.updated_at AS "updatedAt"`;
@@ -140,6 +140,32 @@ export class DocumentsService {
         FROM app.document_receipts r LEFT JOIN identity.list_members($1) u ON u.id=r.user_id
         WHERE r.tenant_id=$1 AND r.version_id=$2 ORDER BY r.acknowledged_at DESC,r.user_id LIMIT $3 OFFSET $4`,[...args,query.limit,query.offset]);
       return {items:result.rows,total:count.rows[0].total};
+    });
+  }
+  distribution(principal:Principal,tenant:string|undefined,id:string,versionId:string,query:ReceiptQuery) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.write(session);const version=await session.db.query<{site_id:string;status:string}>('SELECT site_id,status FROM app.document_versions WHERE tenant_id=$1 AND document_id=$2 AND id=$3',[session.tenant.id,id,versionId]);
+      if(!version.rows[0])throw new NotFoundException('Version introuvable.');
+      const permission=await session.db.query('SELECT identity.can_write_site($1,$2) AS allowed',[session.tenant.id,version.rows[0].site_id]);if(!permission.rows[0].allowed)throw new ForbiddenException('Site non autorisé.');
+      if(!['published','archived'].includes(version.rows[0].status))throw new ConflictException('Cette version n’a pas été publiée.');
+      const args=[session.tenant.id,versionId];const count=await session.db.query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE r.user_id IS NOT NULL)::int AS acknowledged
+        FROM app.document_distribution d LEFT JOIN app.document_receipts r ON r.tenant_id=d.tenant_id AND r.version_id=d.version_id AND r.user_id=d.recipient_id WHERE d.tenant_id=$1 AND d.version_id=$2`,args);
+      const {rows}=await session.db.query(`SELECT d.recipient_id AS "recipientId",u.name AS "recipientName",d.assigned_by AS "assignedBy",d.assigned_at AS "assignedAt",r.acknowledged_at AS "acknowledgedAt"
+        FROM app.document_distribution d LEFT JOIN identity.list_members($1) u ON u.id=d.recipient_id LEFT JOIN app.document_receipts r ON r.tenant_id=d.tenant_id AND r.version_id=d.version_id AND r.user_id=d.recipient_id
+        WHERE d.tenant_id=$1 AND d.version_id=$2 ORDER BY d.assigned_at DESC,d.recipient_id LIMIT $3 OFFSET $4`,[...args,query.limit,query.offset]);
+      return {items:rows,...count.rows[0]};
+    });
+  }
+  assignDistribution(principal:Principal,tenant:string|undefined,id:string,versionId:string,input:DocumentDistributionDto) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.write(session);const document=await this.lock(session,id);
+      const version=await session.db.query<{status:string}>('SELECT status FROM app.document_versions WHERE tenant_id=$1 AND document_id=$2 AND id=$3',[session.tenant.id,id,versionId]);
+      if(!version.rows[0])throw new NotFoundException('Version introuvable.');
+      if(version.rows[0].status!=='published')throw new ConflictException('Seule une version publiée peut être diffusée.');
+      const valid=await session.db.query<{allowed:boolean}>('SELECT bool_and(identity.can_assign_site($1,$2,recipient)) AS allowed FROM unnest($3::uuid[]) recipient',[session.tenant.id,document.siteId,input.recipientIds]);
+      if(!valid.rows[0].allowed)throw new BadRequestException('Chaque destinataire doit être actif et habilité sur le site du document.');
+      for(const recipient of input.recipientIds)await session.db.query(`INSERT INTO app.document_distribution(tenant_id,site_id,version_id,recipient_id,assigned_by) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,[session.tenant.id,document.siteId,versionId,recipient,session.actor.id]);
+      return {processed:input.recipientIds.length};
     });
   }
   history(principal: Principal,tenant: string|undefined,id: string): Promise<DocumentEvent[]> {

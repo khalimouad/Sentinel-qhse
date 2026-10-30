@@ -5,6 +5,7 @@ import { Check, Clock3, FileText, Plus, Search, ShieldCheck, X } from 'lucide-re
 import type { DocumentCommand, DocumentDetail, DocumentEvent, DocumentStatus, DocumentSummary, WorkspaceContext } from '@sentinelle/contracts';
 import { api } from '../lib/use-workspace';
 import AttachmentsPanel from './AttachmentsPanel';
+import DocumentDistribution from './DocumentDistribution';
 
 const labels: Record<DocumentStatus,string> = { draft: 'Brouillon', in_review: 'En vérification', pending_approval: 'À approuver', published: 'Publié', rejected: 'À reprendre', archived: 'Archivé' };
 const message = (error: unknown) => error instanceof Error ? error.message : 'Une erreur est survenue.';
@@ -126,6 +127,7 @@ export default function DocumentsPage({ context,siteName }: { context: Workspace
             <button className="button" disabled={pending||fileBusy} onClick={()=>void showHistory()}><Clock3 size={14} /> Historique</button>
           </div>
           <div className="document-evidence"><span>Empreinte SHA-256</span><code>{version.contentSha256}</code><span>Empreinte du manifeste des pièces jointes</span><code>{version.attachmentsSha256}</code>{version.reviewedAt && <span>Vérifié le {new Date(version.reviewedAt).toLocaleString('fr-FR')}</span>}{version.approvedAt && <span>Approuvé le {new Date(version.approvedAt).toLocaleString('fr-FR')}</span>}</div>
+          {context.canWrite&&['published','archived'].includes(version.status)&&<DocumentDistribution key={`${version.id}-${version.acknowledged}`} context={context} documentId={detail.document.id} versionId={version.id} published={version.status==='published'}/>}
           {receipts&&<div className="document-history"><h3>Lectures confirmées · {receipts.total}</h3><p>Confirmations reçues pour cette version. Ce relevé ne définit pas de destinataires obligatoires.</p>{receipts.items.map(item=><div key={item.userId}><b>{item.userName||'Compte non actif'}</b><span>{new Date(item.acknowledgedAt).toLocaleString('fr-FR')}</span></div>)}<div className="pagination"><button type="button" className="button button-outline" disabled={pending||receipts.offset===0} onClick={()=>void showReceipts(Math.max(0,receipts.offset-25))}>Précédent</button><button type="button" className="button button-outline" disabled={pending||receipts.offset+25>=receipts.total} onClick={()=>void showReceipts(receipts.offset+25)}>Suivant</button></div></div>}
           {history && <div className="document-history"><h3>Historique des versions</h3>{history.length ? history.map(event=><div key={event.id}><b>{event.operation==='INSERT' ? 'Version créée' : `${labels[event.before?.status as DocumentStatus] || 'Brouillon'} → ${labels[event.after.status as DocumentStatus] || 'Brouillon'}`}</b><span>{name(event.actorId)} · {new Date(event.occurredAt).toLocaleString('fr-FR')}</span></div>) : <p>Aucun événement accessible.</p>}</div>}
         </>}
