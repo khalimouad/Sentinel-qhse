@@ -1,0 +1,47 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import pg from 'pg';
+
+const tenant='10000000-0000-4000-8000-000000000001';
+const actor='20000000-0000-4000-8000-000000000001';
+const reader='20000000-0000-4000-8000-000000000002';
+const site='30000000-0000-4000-8000-000000000001';
+const externalSite='30000000-0000-4000-8000-000000000004';
+const owner=new pg.Client({connectionString:process.env.DATABASE_ADMIN_URL});
+const app=new pg.Client({connectionString:process.env.DATABASE_URL});
+let createdAdmin=false;
+
+test('platform invitation scope, idempotency and cancellation',async()=>{
+ if(!process.env.DATABASE_ADMIN_URL||!process.env.DATABASE_URL)throw new Error('A disposable migrated and seeded database is required.');
+ await owner.connect();await app.connect();
+ try{
+  await owner.query('BEGIN');
+  const inserted=await owner.query('INSERT INTO identity.platform_admins(user_id) VALUES($1) ON CONFLICT DO NOTHING',[actor]);createdAdmin=inserted.rowCount===1;
+  await owner.query('COMMIT');
+  await app.query('BEGIN');
+  await app.query("SELECT set_config('app.actor_id',$1,true)",[actor]);
+  const key=randomUUID(),input={email:'test@example.test',name:'Test',role:'reader',allSites:false,siteIds:[site]};
+  const create=body=>app.query('SELECT identity.platform_invitation_create($1,$2,$3,$4) AS result',[tenant,body,key,'Recette locale']);
+  const first=(await create(input)).rows[0].result,second=(await create(input)).rows[0].result;
+  assert.equal(first.id,second.id);assert.equal(first.status,'pending');
+  await app.query('SAVEPOINT duplicate_conflict');
+  await assert.rejects(create({...input,name:'Autre'}),{code:'40001'});
+  await app.query('ROLLBACK TO SAVEPOINT duplicate_conflict');
+  await app.query('SAVEPOINT bad_site');
+  await assert.rejects(app.query('SELECT identity.platform_invitation_create($1,$2,$3,$4)',[tenant,{...input,siteIds:[externalSite]},randomUUID(),'Recette']),{code:'23514'});
+  await app.query('ROLLBACK TO SAVEPOINT bad_site');
+  await app.query('SAVEPOINT direct_read');
+  await assert.rejects(app.query('SELECT * FROM identity.platform_invitations'),{code:'42501'});
+  await app.query('ROLLBACK TO SAVEPOINT direct_read');
+  const result=(await app.query('SELECT identity.platform_invitation_cancel($1,$2,$3) AS result',[tenant,first.id,'Annulation de recette'])).rows[0].result;
+  assert.equal(result.status,'cancelled');
+  await app.query("SELECT set_config('app.actor_id',$1,true)",[reader]);
+  await app.query('SAVEPOINT no_admin');
+  await assert.rejects(app.query('SELECT identity.platform_invitation_list($1,25,0)',[tenant]),{code:'42501'});
+  await app.query('ROLLBACK TO SAVEPOINT no_admin');
+ }finally{
+  await app.query('ROLLBACK').catch(()=>{});await app.end();
+  if(createdAdmin)await owner.query('DELETE FROM identity.platform_admins WHERE user_id=$1',[actor]).catch(()=>{});await owner.end();
+ }
+});
