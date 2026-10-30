@@ -20,7 +20,8 @@
     "storage:init": "node --env-file-if-exists=.env apps/api/scripts/storage-init.mjs",
     "test:storage": "node --env-file-if-exists=.env --test apps/api/test/storage-http.test.mjs",
     "platform:bootstrap": "node --env-file-if-exists=.env scripts/bootstrap-platform-admin.mjs",
-    "platform:deliver-invitation": "node apps/api/scripts/deliver-invitation.mjs"
+    "platform:deliver-invitation": "node apps/api/scripts/deliver-invitation.mjs",
+    "platform:reconcile-invitation": "node apps/api/scripts/reconcile-invitation.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
