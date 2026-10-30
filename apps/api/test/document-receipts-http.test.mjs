@@ -15,6 +15,12 @@ test('published version receipts are paginated and restricted to site managers',
  assert.equal((await (await server.request(targets,author)).json()).total,0);
  for(let i=0;i<2;i++)assert.equal((await server.request(targets,author,{method:'POST',body:JSON.stringify({recipientIds:[readerId]})})).status,201);
  let distribution=await (await server.request(targets,author)).json();assert.equal(distribution.total,1);assert.equal(distribution.acknowledged,0);
+ const inboxResponse=await server.request('notifications?filter=unread&limit=100',reader);assert.equal(inboxResponse.status,200);const inbox=await inboxResponse.json();const notices=inbox.items.filter(n=>n.kind==='document_assigned'&&n.documentId===id);assert.equal(notices.length,1);assert.equal(notices[0].documentTitle,'Lecture documentaire');
+ const authorInbox=await (await server.request('notifications?filter=all&limit=100',author)).json();assert.ok(!authorInbox.items.some(n=>n.id===notices[0].id));
+ assert.equal((await server.request(`notifications/${notices[0].id}/read`,author,{method:'POST',body:JSON.stringify({status:'read'})})).status,404);
+ assert.equal((await server.request(`notifications/${notices[0].id}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,201);
+ assert.equal((await server.request(`notifications/${notices[0].id}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,201);
+
  assert.equal((await server.request(targets,reader)).status,403);
  for(let i=0;i<2;i++)assert.equal((await server.request(`${path}/acknowledgements`,reader,{method:'POST',body:'{}'})).status,201);
  distribution=await (await server.request(targets,author)).json();assert.equal(distribution.acknowledged,1);assert.ok(distribution.items[0].acknowledgedAt);
@@ -22,4 +28,9 @@ test('published version receipts are paginated and restricted to site managers',
  assert.equal((await server.request(`${path}/acknowledgements`,author,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
  const list=await server.request(`${path}/acknowledgements?limit=1&offset=0`,author);assert.equal(list.status,200);const data=await list.json();assert.equal(data.total,1);assert.equal(data.items[0].userName,'Aïcha Méité');
  const next=await server.request(`${path}/acknowledgements?limit=1&offset=1`,author);assert.deepEqual((await next.json()).items,[]);
+ const replacement=await server.request(`documents/${id}/versions`,author,{method:'POST',body:JSON.stringify({expectedLastVersion:1,content:'Nouvelle version',reviewerId:'20000000-0000-4000-8000-000000000003',approverId:'20000000-0000-4000-8000-000000000005'})});assert.equal(replacement.status,201);detail=await replacement.json();const newPath=`documents/${id}/versions/${detail.versions[0].id}`;
+ for(const [command,actor] of [['submit',author],['verify',reviewer],['approve',approver]]){const response=await server.request(`${newPath}/decisions`,actor,{method:'POST',body:JSON.stringify({revision:detail.versions[0].revision,command})});assert.equal(response.status,201);detail=await response.json();}
+ const afterReplacement=await (await server.request('notifications?filter=all&limit=100',reader)).json();assert.ok(!afterReplacement.items.some(n=>n.id===notices[0].id));
+ assert.equal((await server.request(`notifications/${notices[0].id}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,404);
+
 });

@@ -135,7 +135,7 @@ export interface ActionComment {
 export interface ActionCommentList { items:ActionComment[]; total:number }
 
 export interface WorkspaceNotification {
-  id:string; kind:'action_assigned'|'action_comment'; actionId:string; actionTitle:string; reportId:string|null; riskId:string|null; obligationId:string|null;
+  id:string; kind:'action_assigned'|'action_comment'|'document_assigned'; actionId:string|null; actionTitle:string|null; documentId:string|null; documentTitle:string|null; reportId:string|null; riskId:string|null; obligationId:string|null;
   actorId:string; actorName:string; createdAt:string; readAt:string|null;
 }
 export interface NotificationList { items:WorkspaceNotification[]; total:number; unread:number }

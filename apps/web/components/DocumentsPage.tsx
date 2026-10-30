@@ -10,7 +10,7 @@ import DocumentDistribution from './DocumentDistribution';
 const labels: Record<DocumentStatus,string> = { draft: 'Brouillon', in_review: 'En vérification', pending_approval: 'À approuver', published: 'Publié', rejected: 'À reprendre', archived: 'Archivé' };
 const message = (error: unknown) => error instanceof Error ? error.message : 'Une erreur est survenue.';
 
-export default function DocumentsPage({ context,siteName }: { context: WorkspaceContext; siteName: string }) {
+export default function DocumentsPage({ context,siteName,initialDocumentId }: { context: WorkspaceContext; siteName: string; initialDocumentId?:string }) {
   const [documents,setDocuments] = useState<DocumentSummary[]>([]);
   const [page,setPage] = useState(0);
   const [total,setTotal] = useState(0);
@@ -59,6 +59,7 @@ export default function DocumentsPage({ context,siteName }: { context: Workspace
       if (request===selection.current) { setDetail(saved); setSelectedVersion(saved.versions[0]?.id || ''); }
     } catch (e) { if (request===selection.current) setError(message(e)); }
   }
+  useEffect(()=>{if(initialDocumentId)void openDocument(initialDocumentId);},[initialDocumentId,tenant]);
   async function mutate(path: string,input: unknown,method='POST') {
     if (pending||fileBusy) return;
     const request=++selection.current;setPending(true); setError('');

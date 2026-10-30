@@ -67,8 +67,7 @@ export class OverviewService {
           'noncompliant',count(*) FILTER(WHERE o.assessment_status='noncompliant')::int,
           'notApplicable',count(*) FILTER(WHERE o.assessment_status='not_applicable')::int,
           'overdue',count(*) FILTER(WHERE o.next_review_on<today.day)::int) FROM scoped_obligations o CROSS JOIN today) ELSE NULL END AS compliance,
-        (SELECT count(*)::int FROM app.notifications n WHERE n.tenant_id=$1 AND n.recipient_id=identity.actor_id()
-          AND ($2::uuid IS NULL OR n.site_id=$2) AND n.read_at IS NULL) AS "notificationUnread",
+        ((SELECT count(*) FROM app.notifications n WHERE n.tenant_id=$1 AND n.recipient_id=identity.actor_id() AND ($2::uuid IS NULL OR n.site_id=$2) AND n.read_at IS NULL)+(SELECT count(*) FROM app.document_notifications n WHERE n.tenant_id=$1 AND n.recipient_id=identity.actor_id() AND ($2::uuid IS NULL OR n.site_id=$2) AND n.read_at IS NULL))::int AS "notificationUnread",
         (SELECT coalesce(jsonb_agg(to_jsonb(item)-'rank' ORDER BY item.rank),'[]'::jsonb) FROM (
           SELECT ${actionColumns},a.rank FROM next_actions a JOIN app.sites s ON s.id=a.site_id
           JOIN identity.list_members($1) u ON u.id=a.owner_id

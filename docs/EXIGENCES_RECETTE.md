@@ -89,3 +89,7 @@ Une vérification motivée et indépendante peut être ajoutée à une version c
 ## Avancement technique — SOC-01, diffusion ciblée
 
 Des destinataires habilités peuvent être désignés sur une version publiée ; leur confirmation est rapprochée de la liste nominative. Des tests API/PostgreSQL locaux couvrent droits, doublons et confirmation. Les notifications, relances, annulations et la recette navigateur restent ouvertes : SOC-01 demeure non validée.
+
+## Avancement technique — SOC-01 et TECH-04
+
+La diffusion ciblée crée une notification interne visible seulement par le destinataire autorisé pendant la publication de la version. Des tests locaux couvrent création, déduplication, lecture et masquage au remplacement. Les courriels, les relances et la recette navigateur restent nécessaires ; les exigences demeurent non validées.
