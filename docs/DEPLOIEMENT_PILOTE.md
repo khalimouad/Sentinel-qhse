@@ -26,3 +26,5 @@ La migration 021 ajoute l'enregistrement d'un résultat confirmé ou incertain p
 Un adaptateur Supabase d'invitation est préparé et testé avec un fournisseur simulé. Il valide les URLs, ne suit pas les redirections et classe les erreurs réseau, HTTP et réponses invalides comme incertaines sans renvoi automatique. Il n'est relié à aucune route et ne déclenche encore aucun envoi : l'association sûre du sujet fournisseur aux droits et la réconciliation restent à terminer.
 
 La migration 022 prépare le rattachement transactionnel d'une identité fournisseur confirmée aux droits demandés, sans modifier une adhésion existante. Elle reste inaccessible au rôle runtime et ne remplace pas la vérification de la réponse fournisseur ; le service de livraison et la réconciliation restent à intégrer.
+
+L'orchestration `invitation-delivery.mjs` sépare réservation, appel fournisseur, enregistrement du résultat et rattachement. Les cas incertains ne sont pas renvoyés automatiquement ; une confirmation enregistrée mais non rattachée exige une réconciliation. Ce module n'est pas encore relié à une route ni à un worker et ne déclenche aucun envoi.
