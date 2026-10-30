@@ -113,3 +113,7 @@ Un premier registre persistant couvre tiers, évaluations, cadeaux/invitations e
 ## Avancement technique — AC-03 et AC-04, questionnaires et décisions
 
 Une évaluation de tiers inclut cinq réponses structurées et une décision humaine motivée ; un registre des dons et parrainages est ajouté. Des tests locaux couvrent l'enregistrement et la concurrence. Les seuils, circuits, preuves et recette navigateur restent nécessaires ; les exigences demeurent non validées.
+
+## Avancement technique — AC-02 et AC-06
+
+Une catégorie de risque corruption permet une première cartographie par processus, fonction et pays ; des contrôles peuvent être liés aux risques. Un scénario API/PostgreSQL local couvre risque, contrôle et action. Les essais de contrôle et la recette métier restent nécessaires : les exigences ne sont pas validées.

@@ -1,0 +1,13 @@
+ALTER TABLE app.risks DROP CONSTRAINT risks_category_check;
+ALTER TABLE app.risks ADD CONSTRAINT risks_category_check CHECK(category IN ('quality','safety','environment','compliance','governance','corruption','other'));
+ALTER TABLE app.risks ADD COLUMN process_name text NOT NULL DEFAULT '' CHECK(length(process_name)<=200);
+ALTER TABLE app.risks ADD COLUMN function_name text NOT NULL DEFAULT '' CHECK(length(function_name)<=200);
+ALTER TABLE app.risks ADD COLUMN country text NOT NULL DEFAULT '' CHECK(length(country)<=80);
+GRANT INSERT(process_name,function_name,country),UPDATE(process_name,function_name,country) ON app.risks TO sentinelle_app;
+ALTER TABLE app.ethics_records DROP CONSTRAINT ethics_records_kind_check;
+ALTER TABLE app.ethics_records ADD CONSTRAINT ethics_records_kind_check CHECK(kind IN ('third_party','assessment','gift','conflict','donation','control'));
+ALTER TABLE app.ethics_records ADD COLUMN risk_id uuid;
+ALTER TABLE app.ethics_records ADD CONSTRAINT ethics_risk_scope FOREIGN KEY(tenant_id,risk_id,site_id) REFERENCES app.risks(tenant_id,id,site_id);
+ALTER TABLE app.ethics_records ADD CONSTRAINT ethics_control_risk_only CHECK(kind='control' OR risk_id IS NULL);
+CREATE INDEX ethics_records_risk_idx ON app.ethics_records(tenant_id,risk_id,site_id);
+GRANT INSERT(risk_id) ON app.ethics_records TO sentinelle_app;

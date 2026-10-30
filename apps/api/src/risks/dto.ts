@@ -4,9 +4,12 @@ import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import type { RiskCategory,RiskStatus,Priority } from '@sentinelle/contracts';
 const trim=({value}:{value:unknown})=>typeof value==='string'?value.trim():value;
 export class CreateRiskDto {
+  @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(200) processName?:string;
+  @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(200) functionName?:string;
+  @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(80) country?:string;
   @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(300) title!:string;
   @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(6000) description!:string;
-  @ApiProperty({enum:['quality','safety','environment','compliance','governance','other']}) @IsIn(['quality','safety','environment','compliance','governance','other']) category!:RiskCategory;
+  @ApiProperty({enum:['quality','safety','environment','compliance','governance','corruption','other']}) @IsIn(['quality','safety','environment','compliance','governance','corruption','other']) category!:RiskCategory;
   @ApiProperty({format:'uuid'}) @IsUUID() siteId!:string;
   @ApiProperty({format:'uuid'}) @IsUUID() ownerId!:string;
   @ApiProperty({minimum:1,maximum:5}) @IsInt() @Min(1) @Max(5) inherentLikelihood!:number;
@@ -36,7 +39,7 @@ export class RiskQuery {
   @ApiPropertyOptional({format:'uuid'}) @IsOptional() @IsUUID() siteId?:string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) search?:string;
   @ApiPropertyOptional({enum:['active','accepted','archived']}) @IsOptional() @IsIn(['active','accepted','archived']) status?:RiskStatus;
-  @ApiPropertyOptional({enum:['quality','safety','environment','compliance','governance','other']}) @IsOptional() @IsIn(['quality','safety','environment','compliance','governance','other']) category?:RiskCategory;
+  @ApiPropertyOptional({enum:['quality','safety','environment','compliance','governance','corruption','other']}) @IsOptional() @IsIn(['quality','safety','environment','compliance','governance','corruption','other']) category?:RiskCategory;
   @ApiPropertyOptional({minimum:1,maximum:5}) @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(5) likelihood?:number;
   @ApiPropertyOptional({minimum:1,maximum:5}) @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(5) severity?:number;
   @ApiPropertyOptional({default:25}) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;

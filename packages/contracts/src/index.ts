@@ -141,10 +141,10 @@ export interface WorkspaceNotification {
 export interface NotificationList { items:WorkspaceNotification[]; total:number; unread:number }
 export interface NotificationReceipt { id:string; readAt:string }
 
-export type RiskCategory='quality'|'safety'|'environment'|'compliance'|'governance'|'other';
+export type RiskCategory='quality'|'safety'|'environment'|'compliance'|'governance'|'corruption'|'other';
 export type RiskStatus='active'|'accepted'|'archived';
 export interface Risk {
-  id:string; siteId:string; siteName:string; title:string; description:string; category:RiskCategory; ownerId:string; createdBy:string;
+  id:string; siteId:string; siteName:string; title:string; description:string; category:RiskCategory; processName:string; functionName:string; country:string; ownerId:string; createdBy:string;
   inherentLikelihood:number; inherentSeverity:number; residualLikelihood:number; residualSeverity:number;
   inherentScore:number; residualScore:number; controls:string; nextReviewOn:string; reviewOverdue:boolean;
   status:RiskStatus; acceptanceNote:string|null; acceptedBy:string|null; acceptedAt:string|null;

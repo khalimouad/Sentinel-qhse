@@ -5,7 +5,7 @@ import type { Principal } from '../auth.js';
 import { Database,type TenantSession } from '../database.js';
 import { actionColumns,actionJoins } from '../actions/action-query.js';
 import { AssessRiskDto,CreateRiskDto,DecideRiskDto,RiskActionDto,RiskExportQuery,RiskQuery } from './dto.js';
-const columns=`r.id,r.site_id AS "siteId",s.name AS "siteName",r.title,r.description,r.category,r.owner_id AS "ownerId",r.created_by AS "createdBy",
+const columns=`r.id,r.site_id AS "siteId",s.name AS "siteName",r.title,r.description,r.category,r.process_name AS "processName",r.function_name AS "functionName",r.country,r.owner_id AS "ownerId",r.created_by AS "createdBy",
   r.inherent_likelihood AS "inherentLikelihood",r.inherent_severity AS "inherentSeverity",r.residual_likelihood AS "residualLikelihood",r.residual_severity AS "residualSeverity",
   r.inherent_score AS "inherentScore",r.residual_score AS "residualScore",r.controls,r.next_review_on::text AS "nextReviewOn",
   (r.status<>'archived' AND r.next_review_on<(statement_timestamp() AT TIME ZONE 'UTC')::date) AS "reviewOverdue",
@@ -71,9 +71,9 @@ export class RisksService {
       if(!site.rowCount)throw new BadRequestException('Site non accessible.');
       await this.owner(session,input.siteId,input.ownerId);
       const id=randomUUID();
-      await session.db.query(`INSERT INTO app.risks(id,tenant_id,site_id,title,description,category,owner_id,created_by,inherent_likelihood,inherent_severity,residual_likelihood,residual_severity,controls,next_review_on,last_change_note)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'Risque enregistré')`,
-        [id,session.tenant.id,input.siteId,input.title,input.description,input.category,input.ownerId,session.actor.id,input.inherentLikelihood,input.inherentSeverity,input.residualLikelihood,input.residualSeverity,input.controls,input.nextReviewOn]);
+      await session.db.query(`INSERT INTO app.risks(id,tenant_id,site_id,title,description,category,owner_id,created_by,inherent_likelihood,inherent_severity,residual_likelihood,residual_severity,controls,next_review_on,last_change_note,process_name,function_name,country)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'Risque enregistré',$15,$16,$17)`,
+        [id,session.tenant.id,input.siteId,input.title,input.description,input.category,input.ownerId,session.actor.id,input.inherentLikelihood,input.inherentSeverity,input.residualLikelihood,input.residualSeverity,input.controls,input.nextReviewOn,input.processName||'',input.functionName||'',input.country||'']);
       return this.detailIn(session,id);
     });
   }
@@ -83,8 +83,8 @@ export class RisksService {
       if(risk.status!=='active')throw new ConflictException('Rouvrez le risque avant de modifier son évaluation.');
       await this.owner(session,risk.siteId,input.ownerId);
       await session.db.query(`UPDATE app.risks SET title=$3,description=$4,category=$5,owner_id=$6,inherent_likelihood=$7,inherent_severity=$8,
-        residual_likelihood=$9,residual_severity=$10,controls=$11,next_review_on=$12,last_change_note=$13 WHERE tenant_id=$1 AND id=$2`,
-        [session.tenant.id,id,input.title,input.description,input.category,input.ownerId,input.inherentLikelihood,input.inherentSeverity,input.residualLikelihood,input.residualSeverity,input.controls,input.nextReviewOn,input.reason]);
+        residual_likelihood=$9,residual_severity=$10,controls=$11,next_review_on=$12,last_change_note=$13,process_name=coalesce($14,process_name),function_name=coalesce($15,function_name),country=coalesce($16,country) WHERE tenant_id=$1 AND id=$2`,
+        [session.tenant.id,id,input.title,input.description,input.category,input.ownerId,input.inherentLikelihood,input.inherentSeverity,input.residualLikelihood,input.residualSeverity,input.controls,input.nextReviewOn,input.reason,input.processName??null,input.functionName??null,input.country??null]);
       return this.detailIn(session,id);
     });
   }
