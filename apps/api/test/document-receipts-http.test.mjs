@@ -15,7 +15,14 @@ test('published version receipts are paginated and restricted to site managers',
  assert.equal((await (await server.request(targets,author)).json()).total,0);
  for(let i=0;i<2;i++)assert.equal((await server.request(targets,author,{method:'POST',body:JSON.stringify({recipientIds:[readerId]})})).status,201);
  let distribution=await (await server.request(targets,author)).json();assert.equal(distribution.total,1);assert.equal(distribution.acknowledged,0);
- const inboxResponse=await server.request('notifications?filter=unread&limit=100',reader);assert.equal(inboxResponse.status,200);const inbox=await inboxResponse.json();const notices=inbox.items.filter(n=>n.kind==='document_assigned'&&n.documentId===id);assert.equal(notices.length,1);assert.equal(notices[0].documentTitle,'Lecture documentaire');
+ const reminderPath=`${targets}/${readerId}/reminders`,reminderKey=randomUUID();
+ assert.equal((await server.request(reminderPath,reader,{method:'POST',body:JSON.stringify({idempotencyKey:reminderKey})})).status,403);
+ const firstReminder=await server.request(reminderPath,author,{method:'POST',body:JSON.stringify({idempotencyKey:reminderKey})});assert.equal(firstReminder.status,201);const reminderId=(await firstReminder.json()).id;
+ distribution=await (await server.request(targets,author)).json();assert.ok(distribution.items[0].lastReminderAt);
+ const retryReminder=await server.request(reminderPath,author,{method:'POST',body:JSON.stringify({idempotencyKey:reminderKey})});assert.equal(retryReminder.status,201);assert.equal((await retryReminder.json()).id,reminderId);
+ assert.equal((await server.request(reminderPath,author,{method:'POST',body:JSON.stringify({idempotencyKey:randomUUID()})})).status,409);
+
+ const inboxResponse=await server.request('notifications?filter=unread&limit=100',reader);assert.equal(inboxResponse.status,200);const inbox=await inboxResponse.json();const reminders=inbox.items.filter(n=>n.kind==='document_reminder'&&n.documentId===id);assert.equal(reminders.length,1);assert.equal(reminders[0].id,reminderId);assert.equal((await server.request(`notifications/${reminderId}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,201);assert.equal((await server.request(`notifications/${reminderId}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,201);const notices=inbox.items.filter(n=>n.kind==='document_assigned'&&n.documentId===id);assert.equal(notices.length,1);assert.equal(notices[0].documentTitle,'Lecture documentaire');
  const authorInbox=await (await server.request('notifications?filter=all&limit=100',author)).json();assert.ok(!authorInbox.items.some(n=>n.id===notices[0].id));
  assert.equal((await server.request(`notifications/${notices[0].id}/read`,author,{method:'POST',body:JSON.stringify({status:'read'})})).status,404);
  assert.equal((await server.request(`notifications/${notices[0].id}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,201);
@@ -24,6 +31,9 @@ test('published version receipts are paginated and restricted to site managers',
  assert.equal((await server.request(targets,reader)).status,403);
  for(let i=0;i<2;i++)assert.equal((await server.request(`${path}/acknowledgements`,reader,{method:'POST',body:'{}'})).status,201);
  distribution=await (await server.request(targets,author)).json();assert.equal(distribution.acknowledged,1);assert.ok(distribution.items[0].acknowledgedAt);
+ assert.equal((await server.request(reminderPath,author,{method:'POST',body:JSON.stringify({idempotencyKey:randomUUID()})})).status,409);
+ const readInbox=await (await server.request('notifications?filter=all&limit=100',reader)).json();assert.ok(!readInbox.items.some(n=>n.id===reminderId));
+ assert.equal((await server.request(`notifications/${reminderId}/read`,reader,{method:'POST',body:JSON.stringify({status:'read'})})).status,404);
  assert.equal((await server.request(`${path}/acknowledgements`,reader)).status,403);
  assert.equal((await server.request(`${path}/acknowledgements`,author,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
  const list=await server.request(`${path}/acknowledgements?limit=1&offset=0`,author);assert.equal(list.status,200);const data=await list.json();assert.equal(data.total,1);assert.equal(data.items[0].userName,'Aïcha Méité');

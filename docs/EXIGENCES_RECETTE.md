@@ -97,3 +97,7 @@ La diffusion ciblée crée une notification interne visible seulement par le des
 ## Avancement technique — SOC-01, annulation
 
 Les responsables peuvent annuler une affectation avec motif et conserver sa preuve de lecture antérieure ; la notification associée est masquée. Les tests API/PostgreSQL locaux couvrent droits et reprise. La réaffectation, les relances et la recette navigateur restent nécessaires ; l'exigence reste non validée.
+
+## Avancement technique — SOC-01 et TECH-04, relances
+
+Les responsables peuvent déclencher une relance interne nominative, limitée à une par 24 heures, pour une lecture attendue ; la notification disparaît après confirmation. Les tests locaux couvrent droits, reprise et fréquence. Les relances automatiques et par courriel ainsi que la recette navigateur restent nécessaires ; les exigences demeurent non validées.

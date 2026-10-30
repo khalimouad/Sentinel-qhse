@@ -45,3 +45,5 @@ export class CancelDistributionDto {
  @ApiProperty({maxLength:2000}) @Transform(({value}:{value:unknown})=>typeof value==='string'?value.trim():value) @IsString() @MinLength(1) @MaxLength(2000) @Matches(/^[^\u0000]*$/) reason!:string;
  @ApiProperty({format:'uuid'}) @IsUUID() idempotencyKey!:string;
 }
+
+export class DocumentReminderDto { @ApiProperty({format:'uuid'}) @IsUUID() idempotencyKey!:string; }
