@@ -10,15 +10,22 @@ test('published version receipts are paginated and restricted to site managers',
  assert.equal((await server.request(`${path}/acknowledgements`,author)).status,409);
  for(const [command,actor] of [['submit',author],['verify',reviewer],['approve',approver]]) {const res=await server.request(`${path}/decisions`,actor,{method:'POST',body:JSON.stringify({revision:detail.versions[0].revision,command})});assert.equal(res.status,201);detail=await res.json();}
  const targets=`${path}/distribution`,readerId='20000000-0000-4000-8000-000000000002',otherId='20000000-0000-4000-8000-000000000004';
+ const candidates=`${path}/distribution-candidates`;assert.equal((await server.request(candidates,reader)).status,403);
+ const initialCandidates=await (await server.request(`${candidates}?search=A%C3%AFcha&limit=1`,author)).json();assert.equal(initialCandidates.total,1);assert.equal(initialCandidates.items[0].id,readerId);
+ assert.equal((await server.request(candidates,author,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
+
  assert.equal((await server.request(targets,reader,{method:'POST',body:JSON.stringify({recipientIds:[readerId]})})).status,403);
  assert.equal((await server.request(targets,author,{method:'POST',body:JSON.stringify({recipientIds:[readerId,otherId]})})).status,400);
  assert.equal((await (await server.request(targets,author)).json()).total,0);
  for(let i=0;i<2;i++)assert.equal((await server.request(targets,author,{method:'POST',body:JSON.stringify({recipientIds:[readerId]})})).status,201);
  let distribution=await (await server.request(targets,author)).json();assert.equal(distribution.total,1);assert.equal(distribution.acknowledged,0);
+ assert.equal((await (await server.request(`${candidates}?search=A%C3%AFcha`,author)).json()).total,0);
  const reminderPath=`${targets}/${readerId}/reminders`,reminderKey=randomUUID();
  assert.equal((await server.request(reminderPath,reader,{method:'POST',body:JSON.stringify({idempotencyKey:reminderKey})})).status,403);
  const firstReminder=await server.request(reminderPath,author,{method:'POST',body:JSON.stringify({idempotencyKey:reminderKey})});assert.equal(firstReminder.status,201);const reminderId=(await firstReminder.json()).id;
  distribution=await (await server.request(targets,author)).json();assert.ok(distribution.items[0].lastReminderAt);
+ assert.equal((await server.request(reminderPath,reader)).status,403);const log=await (await server.request(`${reminderPath}?limit=1`,author)).json();assert.equal(log.total,1);assert.equal(log.items[0].id,reminderId);assert.equal(log.items[0].actorName,'Jean Dupont');
+
  const retryReminder=await server.request(reminderPath,author,{method:'POST',body:JSON.stringify({idempotencyKey:reminderKey})});assert.equal(retryReminder.status,201);assert.equal((await retryReminder.json()).id,reminderId);
  assert.equal((await server.request(reminderPath,author,{method:'POST',body:JSON.stringify({idempotencyKey:randomUUID()})})).status,409);
 

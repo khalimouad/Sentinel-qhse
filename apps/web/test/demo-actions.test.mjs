@@ -25,3 +25,12 @@ test('demo register exports use active filters',async()=>{
  const obligations=await demoApi('obligations/export?lifecycle=active&search=FR',context.tenant.id);
  assert.ok(obligations.items.length>0);assert.ok(obligations.items.every(item=>item.jurisdiction==='FR'));
 });
+test('demo document candidate search and reminder history stay local',async()=>{
+ const context=await demoApi('context');
+ const documents=await demoApi('documents',context.tenant.id);const doc=documents.items[0];
+ const detail=await demoApi(`documents/${doc.id}`,context.tenant.id);const version=detail.versions[0].id;
+ const candidates=await demoApi(`documents/${doc.id}/versions/${version}/distribution-candidates?search=A%C3%AFcha&limit=1`,context.tenant.id);
+ assert.equal(candidates.total,1);assert.equal(candidates.items[0].name,'Aïcha Exemple');
+ const history=await demoApi(`documents/${doc.id}/versions/${version}/distribution/${context.actor.id}/reminders`,context.tenant.id);
+ assert.equal(history.total,0);
+});

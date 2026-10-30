@@ -47,3 +47,7 @@ export class CancelDistributionDto {
 }
 
 export class DocumentReminderDto { @ApiProperty({format:'uuid'}) @IsUUID() idempotencyKey!:string; }
+
+export class DistributionCandidatesQuery extends ReceiptQuery {
+ @ApiPropertyOptional({maxLength:200}) @IsOptional() @IsString() @MaxLength(200) search?:string;
+}

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { DocumentDetail, DocumentEvent, DocumentList, DocumentSummary, DocumentVersion } from '@sentinelle/contracts';
 import { Database, type TenantSession } from '../database.js';
 import type { Principal } from '../auth.js';
-import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, DocumentDistributionDto, CancelDistributionDto, DocumentReminderDto, VersionInput } from './dto.js';
+import { CreateDocumentDto, DecideVersionDto, DocumentQuery, EditVersionDto, NewVersionDto, ReceiptQuery, DocumentDistributionDto, CancelDistributionDto, DocumentReminderDto, DistributionCandidatesQuery, VersionInput } from './dto.js';
 import { decideDocument, DocumentWorkflowError, validateParticipants } from './workflow.mjs';
 
 const documentColumns = `d.id,d.code,d.title,d.site_id AS "siteId",s.name AS "siteName",d.last_version AS "lastVersion",v.status,d.updated_at AS "updatedAt"`;
@@ -154,6 +154,32 @@ export class DocumentsService {
         FROM app.document_distribution d LEFT JOIN identity.list_members($1) u ON u.id=d.recipient_id LEFT JOIN app.document_receipts r ON r.tenant_id=d.tenant_id AND r.version_id=d.version_id AND r.user_id=d.recipient_id LEFT JOIN app.document_distribution_cancellations c ON c.tenant_id=d.tenant_id AND c.version_id=d.version_id AND c.recipient_id=d.recipient_id
         WHERE d.tenant_id=$1 AND d.version_id=$2 ORDER BY d.assigned_at DESC,d.recipient_id LIMIT $3 OFFSET $4`,[...args,query.limit,query.offset]);
       return {items:rows,...count.rows[0]};
+    });
+  }
+  distributionCandidates(principal:Principal,tenant:string|undefined,id:string,versionId:string,query:DistributionCandidatesQuery) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.write(session);const {db}=session;const version=await db.query<{site_id:string;status:string}>('SELECT site_id,status FROM app.document_versions WHERE tenant_id=$1 AND document_id=$2 AND id=$3',[session.tenant.id,id,versionId]);
+      if(!version.rows[0])throw new NotFoundException('Version introuvable.');
+      const allowed=await db.query('SELECT identity.can_write_site($1,$2) AS allowed',[session.tenant.id,version.rows[0].site_id]);if(!allowed.rows[0].allowed)throw new ForbiddenException('Site non autorisé.');
+      if(version.rows[0].status!=='published')throw new ConflictException('Seule une version publiée peut être diffusée.');
+      const args=[session.tenant.id,version.rows[0].site_id,versionId,query.search?.trim()||''];
+      const from=`FROM identity.list_members($1) m WHERE identity.can_assign_site($1,$2,m.id) AND ($4::text='' OR strpos(lower(m.name),lower($4))>0)
+        AND NOT EXISTS(SELECT 1 FROM app.document_distribution d WHERE d.tenant_id=$1 AND d.version_id=$3 AND d.recipient_id=m.id)`;
+      const count=await db.query(`SELECT count(*)::int AS total ${from}`,args);
+      const {rows}=await db.query(`SELECT m.id,m.name ${from} ORDER BY m.name,m.id LIMIT $5 OFFSET $6`,[...args,query.limit,query.offset]);
+      return {items:rows,total:count.rows[0].total};
+    });
+  }
+  reminderHistory(principal:Principal,tenant:string|undefined,id:string,versionId:string,recipientId:string,query:ReceiptQuery) {
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.write(session);const {db}=session;const version=await db.query<{site_id:string}>('SELECT site_id FROM app.document_versions WHERE tenant_id=$1 AND document_id=$2 AND id=$3',[session.tenant.id,id,versionId]);
+      if(!version.rows[0])throw new NotFoundException('Version introuvable.');
+      const allowed=await db.query('SELECT identity.can_write_site($1,$2) AS allowed',[session.tenant.id,version.rows[0].site_id]);if(!allowed.rows[0].allowed)throw new ForbiddenException('Site non autorisé.');
+      const target=await db.query('SELECT 1 FROM app.document_distribution WHERE tenant_id=$1 AND version_id=$2 AND recipient_id=$3',[session.tenant.id,versionId,recipientId]);if(!target.rowCount)throw new NotFoundException('Affectation introuvable.');
+      const args=[session.tenant.id,versionId,recipientId];const count=await db.query('SELECT count(*)::int AS total FROM app.document_reminders WHERE tenant_id=$1 AND version_id=$2 AND recipient_id=$3',args);
+      const {rows}=await db.query(`SELECT r.id,r.actor_id AS "actorId",u.name AS "actorName",r.created_at AS "createdAt",r.read_at AS "readAt" FROM app.document_reminders r
+        LEFT JOIN identity.list_members($1) u ON u.id=r.actor_id WHERE r.tenant_id=$1 AND r.version_id=$2 AND r.recipient_id=$3 ORDER BY r.created_at DESC,r.id DESC LIMIT $4 OFFSET $5`,[...args,query.limit,query.offset]);
+      return {items:rows,total:count.rows[0].total};
     });
   }
   assignDistribution(principal:Principal,tenant:string|undefined,id:string,versionId:string,input:DocumentDistributionDto) {

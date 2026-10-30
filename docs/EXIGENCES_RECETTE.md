@@ -101,3 +101,7 @@ Les responsables peuvent annuler une affectation avec motif et conserver sa preu
 ## Avancement technique — SOC-01 et TECH-04, relances
 
 Les responsables peuvent déclencher une relance interne nominative, limitée à une par 24 heures, pour une lecture attendue ; la notification disparaît après confirmation. Les tests locaux couvrent droits, reprise et fréquence. Les relances automatiques et par courriel ainsi que la recette navigateur restent nécessaires ; les exigences demeurent non validées.
+
+## Avancement technique — SOC-01, sélection et suivi
+
+La recherche paginée propose les destinataires actifs habilités sur le site ; l'historique des relances est consultable par les responsables. Des tests locaux couvrent recherche et restrictions. La recette navigateur et les relances par courriel restent nécessaires ; l'exigence reste non validée.

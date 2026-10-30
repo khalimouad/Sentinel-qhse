@@ -62,6 +62,8 @@ export async function demoApi(path,tenantId,options={}){
   if(!id){if(method!=='GET')unsupported();result=page(filter(s.documents.map(x=>x.document),q),q);}
   else if(!item)throw new Error('Document fictif introuvable.');
   else if(command==='history')result=s.history[id]||[];
+  else if(command==='versions'&&url.pathname.endsWith('/distribution-candidates')){if(method!=='GET')unsupported();result=page(filter(s.members,q),q);}
+  else if(command==='versions'&&url.pathname.endsWith('/reminders')){if(method!=='GET')unsupported();result={items:[],total:0};}
   else if(command==='versions'&&url.pathname.endsWith('/distribution')){if(method!=='GET')unsupported();result={items:[],total:0,active:0,acknowledged:0};}
   else if(command==='versions'&&url.pathname.endsWith('/acknowledgements')&&method==='GET'){const version=item.versions.find(v=>v.id===url.pathname.split('/')[4]);if(!version)throw new Error('Version introuvable.');result=page(version.acknowledged?[{userId:members[0].id,userName:members[0].name,acknowledgedAt:now()}]:[],q);}
   else if(command==='versions'&&url.pathname.endsWith('/acknowledgements')){item.versions[0].acknowledged=true;result=item;}
