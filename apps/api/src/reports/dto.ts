@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { Priority, ReportCommand, ReportCurrency, ReportKind, ReportSeverity, ReportStatus } from '@sentinelle/contracts';
 const trim=({ value }: { value: unknown })=>typeof value==='string' ? value.trim() : value;
@@ -13,6 +13,14 @@ export class CreateReportDto {
   @ApiPropertyOptional({ maxLength:4000 }) @IsOptional() @Transform(trim) @IsString() @MaxLength(4000) correction?: string;
   @ApiProperty({ enum:['XOF','XAF','MAD','EUR','USD','GBP'] }) @IsIn(['XOF','XAF','MAD','EUR','USD','GBP']) currency!: ReportCurrency;
 }
+export class IshikawaDto {
+  @ApiPropertyOptional({maxLength:1000}) @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) people?: string;
+  @ApiPropertyOptional({maxLength:1000}) @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) methods?: string;
+  @ApiPropertyOptional({maxLength:1000}) @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) machines?: string;
+  @ApiPropertyOptional({maxLength:1000}) @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) materials?: string;
+  @ApiPropertyOptional({maxLength:1000}) @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) environment?: string;
+  @ApiPropertyOptional({maxLength:1000}) @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) measurement?: string;
+}
 export class AnalyzeReportDto {
   @ApiProperty() @IsInt() @Min(1) revision!: number;
   @ApiProperty({ format:'uuid' }) @IsUUID() ownerId!: string;
@@ -22,6 +30,7 @@ export class AnalyzeReportDto {
   @ApiProperty({ type:[String],maxItems:5 }) @IsArray() @ArrayMaxSize(5)
   @Transform(({ value }: { value: unknown })=>Array.isArray(value) ? value.map(v=>typeof v==='string' ? v.trim() : v) : value)
   @IsString({ each:true }) @MinLength(1,{ each:true }) @MaxLength(1000,{ each:true }) fiveWhys!: string[];
+  @ApiPropertyOptional({type:IshikawaDto}) @IsOptional() @ValidateNested() @Type(()=>IshikawaDto) ishikawa?: IshikawaDto;
   @ApiProperty({ example:'15000.00' }) @Matches(/^\d{1,12}(?:\.\d{1,2})?$/) costAmount!: string;
   @ApiProperty({ enum:['XOF','XAF','MAD','EUR','USD','GBP'] }) @IsIn(['XOF','XAF','MAD','EUR','USD','GBP']) currency!: ReportCurrency;
 }

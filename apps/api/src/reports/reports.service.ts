@@ -8,7 +8,7 @@ import { AnalyzeReportDto,CreateReportDto,DecideReportDto,ReportActionDto,Report
 import { decideReport,ReportWorkflowError,validateCost } from './workflow.mjs';
 
 const columns=`r.id,r.title,r.description,r.kind,r.severity,r.site_id AS "siteId",s.name AS "siteName",r.occurred_at AS "occurredAt",r.reported_by AS "reportedBy",r.status,
-  r.owner_id AS "ownerId",r.verifier_id AS "verifierId",r.correction,r.root_cause AS "rootCause",r.five_whys AS "fiveWhys",r.cost_amount::text AS "costAmount",r.currency,r.revision,
+  r.owner_id AS "ownerId",r.verifier_id AS "verifierId",r.correction,r.root_cause AS "rootCause",r.five_whys AS "fiveWhys",r.ishikawa,r.cost_amount::text AS "costAmount",r.currency,r.revision,
   r.effectiveness,r.effectiveness_note AS "effectivenessNote",r.reviewed_by AS "reviewedBy",r.reviewed_at AS "reviewedAt",r.closed_at AS "closedAt",r.created_at AS "createdAt",r.updated_at AS "updatedAt",r.attachments_sha256 AS "attachmentsSha256"`;
 const joins='FROM app.reports r JOIN app.sites s ON s.id=r.site_id';
 const kinds={ incident:'Incident',near_miss:'Presque-accident',nonconformity:'Non-conformité',complaint:'Réclamation' };
@@ -59,8 +59,8 @@ export class ReportsService {
       try{ validateCost(input.costAmount,input.currency); }catch(e){ if(e instanceof ReportWorkflowError) throw new HttpException(e.message,e.status); throw e; }
       const eligible=await session.db.query('SELECT identity.can_review_site($1,$2,$3) AND identity.can_review_site($1,$2,$4) AS allowed',[session.tenant.id,report.siteId,input.ownerId,input.verifierId]);
       if(!eligible.rows[0].allowed) throw new BadRequestException('Le responsable ou le vérificateur n’est pas habilité pour ce site.');
-      await session.db.query(`UPDATE app.reports SET owner_id=$2,verifier_id=$3,correction=$4,root_cause=$5,five_whys=$6,cost_amount=$7,currency=$8,last_change_note='Analyse mise à jour' WHERE id=$1`,
-        [id,input.ownerId,input.verifierId,input.correction,input.rootCause,JSON.stringify(input.fiveWhys),input.costAmount,input.currency]);
+      await session.db.query(`UPDATE app.reports SET owner_id=$2,verifier_id=$3,correction=$4,root_cause=$5,five_whys=$6,cost_amount=$7,currency=$8,ishikawa=coalesce($9::jsonb,ishikawa),last_change_note='Analyse mise à jour' WHERE id=$1`,
+        [id,input.ownerId,input.verifierId,input.correction,input.rootCause,JSON.stringify(input.fiveWhys),input.costAmount,input.currency,input.ishikawa===undefined?null:JSON.stringify(input.ishikawa)]);
       return this.detailIn(session,id);
     });
   }

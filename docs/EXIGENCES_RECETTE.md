@@ -69,3 +69,7 @@ Référence : « Cahier des charges – Logiciel QHSE, GRC et anticorruption2 »
 | OPT-01 | ISO 27001, 50001, 17025 en option | option | socle et choix client | recette spécifique |
 
 Les cibles de délais et de performance sont des objectifs de recette, pas des résultats déjà mesurés. Les normes citées dans les exemples ne constituent pas des textes réglementaires préchargés. Les preuves doivent être liées à une version précise, avec résultat et environnement ; aucun scénario ci-dessus n'est marqué validé à ce jour.
+
+## Avancement technique — SOC-05
+
+Le dossier de signalement inclut les 5 pourquoi et six familles Ishikawa, enregistrées avec la révision et le journal du dossier. Le cycle de non-conformité avec analyse, actions et vérification indépendante a été exercé par tests API/PostgreSQL locaux, y compris le contrôle de version et la validation des champs. Une recette navigateur, les preuves sur l'environnement pilote avec identités réelles et le parcours complet de réclamation restent nécessaires : l'exigence n'est pas encore validée.

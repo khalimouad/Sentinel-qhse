@@ -48,10 +48,11 @@ export type ReportSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type ReportStatus = 'reported' | 'in_analysis' | 'action_plan' | 'effectiveness_review' | 'closed';
 export type ReportCommand = 'start_analysis' | 'plan_actions' | 'request_review' | 'close' | 'return_for_action' | 'reopen';
 export type ReportCurrency = 'XOF' | 'XAF' | 'MAD' | 'EUR' | 'USD' | 'GBP';
+export type Ishikawa = Partial<Record<'people' | 'methods' | 'machines' | 'materials' | 'environment' | 'measurement', string>>;
 export interface Report {
   id: string; title: string; description: string; kind: ReportKind; severity: ReportSeverity;
   siteId: string; siteName: string; occurredAt: string; reportedBy: string; status: ReportStatus;
-  ownerId: string | null; verifierId: string | null; correction: string; rootCause: string; fiveWhys: string[];
+  ownerId: string | null; verifierId: string | null; correction: string; rootCause: string; fiveWhys: string[]; ishikawa: Ishikawa;
   costAmount: string; currency: ReportCurrency; revision: number;
   effectiveness: 'not_evaluated' | 'effective' | 'ineffective'; effectivenessNote: string | null;
   reviewedBy: string | null; reviewedAt: string | null; closedAt: string | null;
