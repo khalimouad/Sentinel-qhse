@@ -109,3 +109,7 @@ La recherche paginée propose les destinataires actifs habilités sur le site ; 
 ## Avancement technique — AC-03 et AC-04
 
 Un premier registre persistant couvre tiers, évaluations, cadeaux/invitations et conflits ; un test local crée dix tiers et suit les fiches. Les questionnaires structurés, seuils, circuits, preuves, recette navigateur et exploitation réelle restent à développer ou vérifier. Les exigences demeurent non validées.
+
+## Avancement technique — AC-03 et AC-04, questionnaires et décisions
+
+Une évaluation de tiers inclut cinq réponses structurées et une décision humaine motivée ; un registre des dons et parrainages est ajouté. Des tests locaux couvrent l'enregistrement et la concurrence. Les seuils, circuits, preuves et recette navigateur restent nécessaires ; les exigences demeurent non validées.

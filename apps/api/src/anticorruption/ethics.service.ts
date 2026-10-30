@@ -2,8 +2,8 @@ import {BadRequestException,ConflictException,ForbiddenException,Injectable,NotF
 import {randomUUID} from 'node:crypto';
 import {Database} from '../database.js';
 import type {Principal} from '../auth.js';
-import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto} from './dto.js';
-const columns=`e.id,e.kind,e.title,e.description,e.country,e.site_id AS "siteId",s.name AS "siteName",e.party_id AS "partyId",p.title AS "partyName",e.risk,e.status,e.amount::text AS amount,e.currency,e.occurred_on::text AS "occurredOn",e.review_on::text AS "reviewOn",e.owner_id AS "ownerId",e.revision,e.created_at AS "createdAt",e.updated_at AS "updatedAt"`;
+import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto} from './dto.js';
+const columns=`e.id,e.kind,e.title,e.description,e.country,e.site_id AS "siteId",s.name AS "siteName",e.party_id AS "partyId",p.title AS "partyName",e.risk,e.status,e.amount::text AS amount,e.currency,e.occurred_on::text AS "occurredOn",e.review_on::text AS "reviewOn",e.owner_id AS "ownerId",e.questionnaire,e.questionnaire_version AS "questionnaireVersion",e.decision,e.decision_note AS "decisionNote",e.decided_by AS "decidedBy",e.decided_at AS "decidedAt",e.revision,e.created_at AS "createdAt",e.updated_at AS "updatedAt"`;
 const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT JOIN app.ethics_records p ON p.id=e.party_id AND p.tenant_id=e.tenant_id';
 @Injectable() export class EthicsService {
  constructor(private readonly database:Database){}
@@ -24,8 +24,15 @@ const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT J
  });}
  update(principal:Principal,tenant:string|undefined,id:string,input:UpdateEthicsDto){return this.database.withTenant(principal,tenant,async session=>{
   if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
-  const updated=await session.db.query('UPDATE app.ethics_records SET status=$3,risk=$4,description=$5,review_on=$6 WHERE tenant_id=$1 AND id=$2 AND revision=$7 RETURNING id',[session.tenant.id,id,input.status,input.risk,input.description,input.reviewOn||null,input.revision]);
+  if(input.questionnaire){const record=await session.db.query('SELECT kind FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!record.rowCount)throw new NotFoundException('Dossier introuvable.');if(record.rows[0].kind!=='assessment')throw new BadRequestException('Le questionnaire concerne une évaluation de tiers.');}
+  const updated=await session.db.query('UPDATE app.ethics_records SET status=$3,risk=$4,description=$5,review_on=$6,questionnaire=coalesce($8::jsonb,questionnaire) WHERE tenant_id=$1 AND id=$2 AND revision=$7 RETURNING id',[session.tenant.id,id,input.status,input.risk,input.description,input.reviewOn||null,input.revision,input.questionnaire?JSON.stringify(input.questionnaire):null]);
   if(!updated.rowCount){const existing=await session.db.query('SELECT id FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!existing.rowCount)throw new NotFoundException('Dossier introuvable.');throw new ConflictException('Ce dossier a changé. Actualisez.');}
+  const {rows}=await session.db.query(`SELECT ${columns} ${joins} WHERE e.tenant_id=$1 AND e.id=$2`,[session.tenant.id,id]);return rows[0];
+ });}
+ decide(principal:Principal,tenant:string|undefined,id:string,input:EthicsDecisionDto){return this.database.withTenant(principal,tenant,async session=>{
+  if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
+  const updated=await session.db.query("UPDATE app.ethics_records SET decision=$3,decision_note=$4,decided_by=$5,decided_at=clock_timestamp(),status='reviewed' WHERE tenant_id=$1 AND id=$2 AND revision=$6 AND kind<>'third_party' RETURNING id",[session.tenant.id,id,input.decision,input.note,session.actor.id,input.revision]);
+  if(!updated.rowCount){const existing=await session.db.query('SELECT kind FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!existing.rowCount)throw new NotFoundException('Dossier introuvable.');if(existing.rows[0].kind==='third_party')throw new BadRequestException('Créez une évaluation avant de prendre une décision sur un tiers.');throw new ConflictException('Ce dossier a changé. Actualisez.');}
   const {rows}=await session.db.query(`SELECT ${columns} ${joins} WHERE e.tenant_id=$1 AND e.id=$2`,[session.tenant.id,id]);return rows[0];
  });}
  history(principal:Principal,tenant:string|undefined,id:string){return this.database.withTenant(principal,tenant,async session=>{
