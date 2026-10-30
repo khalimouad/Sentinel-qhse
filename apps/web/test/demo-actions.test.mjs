@@ -17,3 +17,11 @@ test('demo action lists filter before pagination',async()=>{
   const next=await demoApi('actions?status=closed&limit=1&offset=1',tenant);
   assert.equal(next.total,1);assert.equal(next.items.length,0);
 });
+
+test('demo register exports use active filters',async()=>{
+ const context=await demoApi('context');
+ const risks=await demoApi('risks/export?category=safety',context.tenant.id);
+ assert.ok(risks.items.length>0);assert.ok(risks.items.every(item=>item.category==='safety'));
+ const obligations=await demoApi('obligations/export?lifecycle=active&search=FR',context.tenant.id);
+ assert.ok(obligations.items.length>0);assert.ok(obligations.items.every(item=>item.jurisdiction==='FR'));
+});

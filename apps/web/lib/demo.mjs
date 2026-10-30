@@ -23,7 +23,7 @@ function read(){if(memory)return memory;try{const saved=JSON.parse(localStorage.
 function persist(state){try{localStorage.setItem(KEY,JSON.stringify(state));}catch{throw new Error('Le navigateur ne permet pas de conserver la démonstration. Libérez du stockage ou autorisez le stockage local.');}}
 export function resetDemo(){localStorage.removeItem(KEY);memory=seed();window.location.reload();}
 function page(items,q){const offset=Math.max(0,Number(q.get('offset')||0)),limit=Math.min(100,Math.max(1,Number(q.get('limit')||25)));return {items:items.slice(offset,offset+limit),total:items.length};}
-function filter(items,q){const search=(q.get('search')||'').toLowerCase();return items.filter(x=>(!q.get('siteId')||x.siteId===q.get('siteId'))&&(!search||`${x.title||x.name||''} ${x.description||''}`.toLowerCase().includes(search)));}
+function filter(items,q){const search=(q.get('search')||'').toLowerCase();return items.filter(x=>(!q.get('siteId')||x.siteId===q.get('siteId'))&&(!search||`${x.title||x.name||''} ${x.description||''} ${x.sourceTitle||''} ${x.jurisdiction||''}`.toLowerCase().includes(search)));}
 function history(s,id,before,after,operation){const event={id:crypto.randomUUID(),actionId:id,actorId:members[0].id,actorName:members[0].name,occurredAt:now(),operation,before:structuredClone(before),after:structuredClone(after)};(s.history[id]||=[]).unshift(event);return event;}
 function unsupported(){throw new Error('Cette opération n’est pas simulée dans cette démonstration. Aucun appel au service réel n’a été effectué.');}
 export async function demoApi(path,tenantId,options={}){
@@ -66,11 +66,12 @@ export async function demoApi(path,tenantId,options={}){
  }
  else if(['reports','risks','obligations','audits'].includes(kind)){
   const collection=s[kind],item=collection.find(x=>x.id===id);
-  if(!id){
+  if(!id||id==='export'){
    if(method==='POST')unsupported();let scoped=filter(collection,q);
    for(const key of ['status','category','lifecycle','assessmentStatus']){const value=q.get(key==='assessmentStatus'?'assessment':key);if(value&&value!=='all')scoped=scoped.filter(x=>x[kind==='obligations'&&key==='status'?'assessmentStatus':key]===value);}
    if(kind==='risks'&&q.get('likelihood'))scoped=scoped.filter(x=>x.residualLikelihood===Number(q.get('likelihood'))&&x.residualSeverity===Number(q.get('severity')));
-   result=page(scoped,q);
+   if(id==='export'&&scoped.length>10000)throw new Error('L’export dépasse 10 000 résultats. Affinez les filtres.');
+   result=id==='export'?{items:scoped,total:scoped.length}:page(scoped,q);
    if(kind==='risks'){const base=filter(collection,q).filter(x=>!q.get('status')||x.status===q.get('status'));result={...result,scopeTotal:base.length,overdue:base.filter(x=>x.reviewOverdue).length,matrix:base.map(x=>({likelihood:x.residualLikelihood,severity:x.residualSeverity,count:1}))};}
    if(kind==='obligations')result={...result,unverified:scoped.filter(x=>x.sourceStatus==='unverified').length,overdue:scoped.filter(x=>x.reviewOverdue).length};
   }else if(!item)throw new Error('Exemple de démonstration introuvable.');

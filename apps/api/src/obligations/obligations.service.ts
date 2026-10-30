@@ -4,7 +4,7 @@ import type { Action,ObligationActionList,Obligation,ObligationList,ReportEvent 
 import type { Principal } from '../auth.js';
 import { actionColumns,actionJoins } from '../actions/action-query.js';
 import { Database,type TenantSession } from '../database.js';
-import { AssessObligationDto,CreateObligationDto,ObligationActionDto,ObligationActionQuery,ObligationDecisionDto,ObligationQuery } from './dto.js';
+import { AssessObligationDto,CreateObligationDto,ObligationActionDto,ObligationActionQuery,ObligationDecisionDto,ObligationExportQuery,ObligationQuery } from './dto.js';
 const columns=`o.id,o.site_id AS "siteId",s.name AS "siteName",o.title,o.jurisdiction,o.source_title AS "sourceTitle",o.source_version AS "sourceVersion",
   o.article,o.source_url AS "sourceUrl",o.excerpt,o.source_sha256 AS "sourceSha256",o.owner_id AS "ownerId",o.created_by AS "createdBy",o.next_review_on::text AS "nextReviewOn",
   (o.lifecycle='active' AND o.next_review_on<(statement_timestamp() AT TIME ZONE 'UTC')::date) AS "reviewOverdue",o.lifecycle,o.source_status AS "sourceStatus",
@@ -66,6 +66,15 @@ export class ObligationsService {
         count(*) FILTER(WHERE o.lifecycle='active' AND o.next_review_on<(statement_timestamp() AT TIME ZONE 'UTC')::date)::int AS overdue FROM app.obligations o ${where}`,args);
       const {rows}=await session.db.query<Obligation>(`SELECT ${columns} ${joins} ${where} ORDER BY o.updated_at DESC,o.id LIMIT $6 OFFSET $7`,[...args,query.limit,query.offset]);
       return {items:rows,...counts.rows[0]};
+    });
+  }
+  export(principal:Principal,tenant:string|undefined,query:ObligationExportQuery):Promise<{items:Obligation[];total:number}>{
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.access(session);
+      const {rows}=await session.db.query<Obligation>(`SELECT ${columns} ${joins} WHERE o.tenant_id=$1 AND ($2::uuid IS NULL OR o.site_id=$2) AND o.lifecycle=$3 AND ($4::text IS NULL OR o.assessment_status=$4)
+        AND ($5::text='' OR strpos(lower(o.title||' '||o.source_title||' '||o.jurisdiction),lower($5))>0) ORDER BY o.updated_at DESC,o.id LIMIT 10001`,[session.tenant.id,query.siteId||null,query.lifecycle,query.status||null,query.search||'']);
+      if(rows.length>10000)throw new BadRequestException('L’export dépasse 10 000 résultats. Affinez les filtres.');
+      return {items:rows,total:rows.length};
     });
   }
   detail(principal:Principal,tenant:string|undefined,id:string){return this.database.withTenant(principal,tenant,session=>this.get(session,id));}

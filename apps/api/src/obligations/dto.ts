@@ -1,6 +1,6 @@
 import { Transform,Type } from 'class-transformer';
 import { IsDateString,IsIn,IsInt,IsOptional,IsString,IsUrl,IsUUID,Matches,Max,MaxLength,Min,MinLength } from 'class-validator';
-import { ApiProperty,ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty,ApiPropertyOptional,OmitType } from '@nestjs/swagger';
 import type { ObligationAssessmentStatus } from '@sentinelle/contracts';
 const trim=({value}:{value:unknown})=>typeof value==='string'?value.trim():value;
 export class CreateObligationDto {
@@ -48,3 +48,5 @@ export class ObligationActionQuery {
   @ApiPropertyOptional({default:25}) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;
   @ApiPropertyOptional({default:0}) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
 }
+
+export class ObligationExportQuery extends OmitType(ObligationQuery,['limit','offset'] as const) {}

@@ -42,3 +42,5 @@ export class RiskQuery {
   @ApiPropertyOptional({default:25}) @Type(()=>Number) @IsInt() @Min(1) @Max(100) limit=25;
   @ApiPropertyOptional({default:0}) @Type(()=>Number) @IsInt() @Min(0) @Max(100000) offset=0;
 }
+
+export class RiskExportQuery extends OmitType(RiskQuery,['limit','offset'] as const) {}

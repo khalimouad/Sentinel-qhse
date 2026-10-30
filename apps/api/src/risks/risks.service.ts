@@ -4,7 +4,7 @@ import type { Action,Risk,RiskDetail,RiskList,ReportEvent } from '@sentinelle/co
 import type { Principal } from '../auth.js';
 import { Database,type TenantSession } from '../database.js';
 import { actionColumns,actionJoins } from '../actions/action-query.js';
-import { AssessRiskDto,CreateRiskDto,DecideRiskDto,RiskActionDto,RiskQuery } from './dto.js';
+import { AssessRiskDto,CreateRiskDto,DecideRiskDto,RiskActionDto,RiskExportQuery,RiskQuery } from './dto.js';
 const columns=`r.id,r.site_id AS "siteId",s.name AS "siteName",r.title,r.description,r.category,r.owner_id AS "ownerId",r.created_by AS "createdBy",
   r.inherent_likelihood AS "inherentLikelihood",r.inherent_severity AS "inherentSeverity",r.residual_likelihood AS "residualLikelihood",r.residual_severity AS "residualSeverity",
   r.inherent_score AS "inherentScore",r.residual_score AS "residualScore",r.controls,r.next_review_on::text AS "nextReviewOn",
@@ -51,6 +51,16 @@ export class RisksService {
       const {rows}=await session.db.query<Risk>(`SELECT ${columns} ${joins} ${base} AND ($6::int IS NULL OR r.residual_likelihood=$6)
         AND ($7::int IS NULL OR r.residual_severity=$7) ORDER BY r.updated_at DESC,r.id LIMIT $8 OFFSET $9`,[...args,query.limit,query.offset]);
       return {items:rows,...counts.rows[0]};
+    });
+  }
+  export(principal:Principal,tenant:string|undefined,query:RiskExportQuery):Promise<{items:Risk[];total:number}>{
+    return this.database.withTenant(principal,tenant,async session=>{
+      this.access(session);
+      const {rows}=await session.db.query<Risk>(`SELECT ${columns} ${joins} WHERE r.tenant_id=$1 AND ($2::uuid IS NULL OR r.site_id=$2) AND ($3::text IS NULL OR r.status=$3)
+        AND ($4::text IS NULL OR r.category=$4) AND ($5::text='' OR strpos(lower(r.title||' '||r.description),lower($5))>0)
+        AND ($6::int IS NULL OR r.residual_likelihood=$6) AND ($7::int IS NULL OR r.residual_severity=$7) ORDER BY r.updated_at DESC,r.id LIMIT 10001`,[session.tenant.id,query.siteId||null,query.status||null,query.category||null,query.search||'',query.likelihood||null,query.severity||null]);
+      if(rows.length>10000)throw new BadRequestException('L’export dépasse 10 000 résultats. Affinez les filtres.');
+      return {items:rows,total:rows.length};
     });
   }
   detail(principal:Principal,tenant:string|undefined,id:string){return this.database.withTenant(principal,tenant,session=>this.detailIn(session,id));}
