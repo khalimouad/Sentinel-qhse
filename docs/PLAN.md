@@ -186,3 +186,7 @@ Les routes `/demo` et `/demo/admin` donnent accès à un utilisateur administrat
 ## Lot invitations — raccordement et recette locale
 
 La migration 024, l'API et l'interface relient la demande à un envoi explicite, un état confirmé ou incertain, un rattachement et une réconciliation contrôlée. Un rôle PostgreSQL distinct vérifie les opérations du service ; l'API exige un administrateur plateforme du fournisseur configuré. Le projet fournisseur est figé dès la réservation. Une réconciliation incertaine vérifie le sujet et l'adresse confirmée auprès de Supabase, sans prétendre que le message a été livré. L'activation reste opt-in et nécessite les secrets et la recette réelle détaillés dans `docs/DEPLOIEMENT_PILOTE.md`.
+
+### Recette avec propriétaire de base restreint
+
+Une base locale vierge a été migrée sous `sentinelle_schema_owner` sans SUPERUSER ni BYPASSRLS. La migration 026 ajoute la politique SELECT nécessaire à l'INSERT dédupliqué des notifications, limitée au seul propriétaire et à l'acteur courant sur ses sites d'écriture. L'application conserve le cloisonnement par destinataire. Les tests de recette passent avec ce propriétaire ; ce résultat ne constitue pas une recette du projet Supabase hébergé.
