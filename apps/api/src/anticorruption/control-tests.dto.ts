@@ -1,5 +1,5 @@
 import {Transform,Type} from 'class-transformer';
-import {IsDateString,IsIn,IsInt,IsString,IsUUID,Matches,Max,MaxLength,Min,MinLength} from 'class-validator';
+import {IsDateString,IsIn,IsInt,IsOptional,IsString,IsUUID,Matches,Max,MaxLength,Min,MinLength} from 'class-validator';
 import {ApiProperty,ApiPropertyOptional} from '@nestjs/swagger';
 const trim=({value}:{value:unknown})=>typeof value==='string'?value.trim():value;
 export class ControlTestQuery {
@@ -18,4 +18,12 @@ export class CompleteControlTestDto {
  @ApiProperty({format:'date'}) @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({strict:true}) testedOn!:string;
  @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(2000) evidenceReference!:string;
  @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(4000) conclusion!:string;
+}
+
+export class ControlTestActionDto {
+ @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(500) title!:string;
+ @ApiProperty({format:'uuid'}) @IsUUID() ownerId!:string;
+ @ApiProperty({enum:['normal','high']}) @IsIn(['normal','high']) priority!:string;
+ @ApiPropertyOptional({format:'date'}) @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({strict:true}) dueDate?:string;
+ @ApiProperty({format:'uuid'}) @IsUUID() idempotencyKey!:string;
 }

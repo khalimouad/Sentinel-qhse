@@ -13,7 +13,7 @@ export interface Action {
   id: string; title: string; origin: string; siteId: string; siteName: string;
   ownerId: string; ownerName: string; priority: Priority; status: ActionStatus;
   dueDate: string | null; version: number; createdAt: string; updatedAt: string;
-  reportId: string | null; riskId:string|null; obligationId:string|null;
+  reportId: string | null; riskId:string|null; obligationId:string|null; controlTestId:string|null;
 }
 export interface ActionList { items: Action[]; total: number }
 export interface CreateAction {

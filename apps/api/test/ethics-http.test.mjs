@@ -18,6 +18,17 @@ test('third parties, evaluations, gifts and conflicts can be recorded and follow
  assert.equal((await server.request(`${testPath}/${testId}/complete`,tester,{method:'POST',body:JSON.stringify(result)})).status,201);
  assert.equal((await server.request(`${testPath}/${testId}/complete`,tester,{method:'POST',body:JSON.stringify(result)})).status,409);
  const completedTests=await (await server.request(testPath,admin)).json();assert.equal(completedTests.items[0].result,'partial');assert.equal(completedTests.items[0].evidenceReference,result.evidenceReference);
+ const actionPath=`${testPath}/${testId}/actions`,actionKey=randomUUID(),corrective={title:'Corriger le contrôle',ownerId:base.ownerId,priority:'high',idempotencyKey:actionKey};
+ assert.equal((await server.request(actionPath,reader,{method:'POST',body:JSON.stringify(corrective)})).status,403);
+ const correctiveResponse=await server.request(actionPath,admin,{method:'POST',body:JSON.stringify(corrective)});assert.equal(correctiveResponse.status,201);const correctiveId=(await correctiveResponse.json()).id;
+ const correctiveRetry=await server.request(actionPath,admin,{method:'POST',body:JSON.stringify(corrective)});assert.equal(correctiveRetry.status,201);assert.equal((await correctiveRetry.json()).id,correctiveId);
+ assert.equal((await server.request(actionPath,admin,{method:'POST',body:JSON.stringify({...corrective,title:'Autre'})})).status,409);
+ const linkedActions=await (await server.request(actionPath,admin)).json();assert.equal(linkedActions.total,1);assert.equal(linkedActions.open,1);assert.equal(linkedActions.items[0].controlTestId,testId);
+ const actionList=await (await server.request('actions?search=Corriger%20le%20contr%C3%B4le',admin)).json();assert.ok(actionList.items.some(item=>item.id===correctiveId));
+ assert.equal((await server.request(`actions/${correctiveId}/history`,reader)).status,404);
+ const closeCorrective=await server.request(`actions/${correctiveId}`,admin,{method:'PATCH',body:JSON.stringify({version:linkedActions.items[0].version,status:'closed'})});assert.equal(closeCorrective.status,200);
+ assert.equal((await (await server.request(actionPath,admin)).json()).open,0);
+
 
  const riskList=await (await server.request('risks?category=corruption',admin)).json();assert.ok(riskList.items.some(item=>item.id===risk.id));
  const action=await server.request(`risks/${risk.id}/actions`,admin,{method:'POST',body:JSON.stringify({revision:risk.revision,title:'Contrôler les paiements',ownerId:base.ownerId,priority:'high'})});assert.equal(action.status,201);

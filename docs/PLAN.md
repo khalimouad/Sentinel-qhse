@@ -288,3 +288,9 @@ Un registre de contrôles anticorruption permet de documenter une mesure et de l
 Un contrôle peut recevoir des essais planifiés avec date et vérificateur habilité. Le vérificateur désigné renseigne une date de réalisation, un résultat (efficace, partiel ou non efficace), une conclusion et une référence de preuve ; le résultat reste consultable sur le contrôle. Les essais sont paginés, leur création accepte une clé de reprise et une version terminée n'est plus modifiable. Le contrôle peut déjà être associé à un risque de corruption, lui-même relié au plan d'actions.
 
 La migration 039 est installée sur Supabase de test. Le build et 35 tests d'intégration locaux ont réussi, dont création, reprise, vérificateur désigné, résultat et preuve. La pièce justificative est actuellement une référence textuelle : fichiers, fréquences automatiques, création d'action depuis un essai, consolidation et recette navigateur restent à développer. L'API hébergée reste à mettre en service.
+
+## Anticorruption — actions correctives issues des essais
+
+Un essai de contrôle terminé avec résultat partiel ou non efficace peut générer une action corrective avec responsable, priorité et échéance. L'action apparaît dans le plan d'actions commun et dans l'essai ; son état et son historique suivent les mécanismes existants. Une clé d'envoi permet une reprise sans doublon. Le lien conserve le périmètre du contrôle et ses restrictions de visibilité.
+
+La migration 040 est appliquée sur Supabase de test. Le build et 35 tests d'intégration locaux ont réussi, notamment création, reprise, accès restreint, présence dans le plan et clôture. La recette navigateur, les justificatifs binaires et l'API hébergée restent à finaliser. La création d'une action ne modifie pas automatiquement le résultat historique de l'essai.

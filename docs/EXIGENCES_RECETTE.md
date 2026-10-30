@@ -121,3 +121,7 @@ Une catégorie de risque corruption permet une première cartographie par proces
 ## Avancement technique — RSK-02 et AC-06
 
 Les essais de contrôle anticorruption peuvent être planifiés et réalisés avec résultat et référence de preuve. Un scénario API/PostgreSQL local couvre le parcours et le vérificateur. La liaison directe d'une action à un essai, les fichiers et la recette métier restent nécessaires ; les exigences demeurent non validées.
+
+## Avancement technique — RSK-02, actions correctives
+
+Un essai de contrôle partiellement efficace ou non efficace peut générer une action visible dans le plan commun. Le scénario local couvre création, reprise et clôture. Les justificatifs et la recette métier restent nécessaires ; l'exigence demeure non validée.
