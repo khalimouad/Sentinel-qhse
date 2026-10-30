@@ -1,7 +1,7 @@
 // Operations must commit independently: a timeout cannot roll back a provider
 // invitation. A reserved attempt is never sent again automatically.
 export async function deliverInvitation({companyId,invitationId,attemptId,issuer,store,provider}) {
- const reserved=await store.reserve(companyId,invitationId,attemptId);
+ const reserved=await store.reserve(companyId,invitationId,attemptId,issuer);
  if(reserved.status!=='sending'||reserved.attemptId!==attemptId)throw new Error('Invitation reservation mismatch');
  let outcome;
  try{outcome=await provider(reserved.email);}catch{outcome={status:'uncertain'};}

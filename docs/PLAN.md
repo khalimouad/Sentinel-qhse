@@ -182,3 +182,7 @@ Le tableau de bord ne monte plus les modules métier tant que le contexte utilis
 ## Démonstration locale au navigateur
 
 Les routes `/demo` et `/demo/admin` donnent accès à un utilisateur administrateur fictif, une entreprise et deux sites, sans API ni OIDC. Les modules présentent des exemples explicitement inventés. Le plan d’actions, les commentaires et la confirmation de lecture disposent d’écritures locales. Les autres workflows non simulés indiquent leur limite sans appel réseau de repli. Une bannière identifie le mode, permet de le quitter et de réinitialiser le stockage du navigateur. Les permissions serveur et le proxy réel ne sont pas modifiés. Voir `docs/DEMO.md`.
+
+## Lot invitations — raccordement et recette locale
+
+La migration 024, l'API et l'interface relient la demande à un envoi explicite, un état confirmé ou incertain, un rattachement et une réconciliation contrôlée. Un rôle PostgreSQL distinct vérifie les opérations du service ; l'API exige un administrateur plateforme du fournisseur configuré. Le projet fournisseur est figé dès la réservation. Une réconciliation incertaine vérifie le sujet et l'adresse confirmée auprès de Supabase, sans prétendre que le message a été livré. L'activation reste opt-in et nécessite les secrets et la recette réelle détaillés dans `docs/DEPLOIEMENT_PILOTE.md`.

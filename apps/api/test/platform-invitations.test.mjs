@@ -36,6 +36,8 @@ test('platform invitation scope, idempotency and cancellation',async()=>{
   await app.query('ROLLBACK TO SAVEPOINT direct_read');
   const result=(await app.query('SELECT identity.platform_invitation_cancel($1,$2,$3) AS result',[tenant,first.id,'Annulation de recette'])).rows[0].result;
   assert.equal(result.status,'cancelled');
+  const events=(await app.query('SELECT identity.platform_history($1,$2,$3,$4,$5) AS result',[tenant,'','invitation_cancel',25,0])).rows[0].result;
+  assert.ok(events.items.some(event=>event.operation==='invitation_cancel'&&event.note==='Annulation de recette'));
   await app.query("SELECT set_config('app.actor_id',$1,true)",[reader]);
   await app.query('SAVEPOINT no_admin');
   await assert.rejects(app.query('SELECT identity.platform_invitation_list($1,25,0)',[tenant]),{code:'42501'});
@@ -57,10 +59,10 @@ test('delivery state prevents duplicate reservation and stale outcomes',async()=
   const body={email:'test@example.test',name:'Test',role:'reader',allSites:false,siteIds:[site]};
   const created=(await privileged.query('SELECT identity.platform_invitation_create($1,$2,$3,$4) AS result',[tenant,body,randomUUID(),'Recette'])).rows[0].result;
   const attempt=randomUUID();
-  const reserved=(await privileged.query('SELECT identity.platform_invitation_reserve($1,$2,$3) AS result',[tenant,created.id,attempt])).rows[0].result;
+  const reserved=(await privileged.query("SELECT identity.platform_invitation_reserve_v2($1,$2,$3,'https://example.supabase.co/auth/v1') AS result",[tenant,created.id,attempt])).rows[0].result;
   assert.equal(reserved.status,'sending');
   await privileged.query('SAVEPOINT repeat_attempt');
-  await assert.rejects(privileged.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,created.id,randomUUID()]),{code:'40001'});
+  await assert.rejects(privileged.query("SELECT identity.platform_invitation_reserve_v2($1,$2,$3,'https://example.supabase.co/auth/v1')",[tenant,created.id,randomUUID()]),{code:'40001'});
   await privileged.query('ROLLBACK TO SAVEPOINT repeat_attempt');
   await privileged.query('SAVEPOINT old_attempt');
   await assert.rejects(privileged.query('SELECT identity.platform_invitation_record_outcome($1,$2,$3,$4,$5)',[tenant,created.id,randomUUID(),'sent',randomUUID()]),{code:'40001'});
@@ -68,10 +70,10 @@ test('delivery state prevents duplicate reservation and stale outcomes',async()=
   const outcome=(await privileged.query('SELECT identity.platform_invitation_record_outcome($1,$2,$3,$4,$5) AS result',[tenant,created.id,attempt,'uncertain',null])).rows[0].result;
   assert.equal(outcome.status,'uncertain');
   await privileged.query('SAVEPOINT no_automatic_retry');
-  await assert.rejects(privileged.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,created.id,randomUUID()]),{code:'40001'});
+  await assert.rejects(privileged.query("SELECT identity.platform_invitation_reserve_v2($1,$2,$3,'https://example.supabase.co/auth/v1')",[tenant,created.id,randomUUID()]),{code:'40001'});
   await privileged.query('ROLLBACK TO SAVEPOINT no_automatic_retry');
   await runtime.query('BEGIN');await runtime.query("SELECT set_config('app.actor_id',$1,true)",[actor]);
-  await assert.rejects(runtime.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,created.id,randomUUID()]),{code:'42501'});
+  await assert.rejects(runtime.query("SELECT identity.platform_invitation_reserve_v2($1,$2,$3,'https://example.supabase.co/auth/v1')",[tenant,created.id,randomUUID()]),{code:'42501'});
  }finally{await privileged.query('ROLLBACK').catch(()=>{});await runtime.query('ROLLBACK').catch(()=>{});await privileged.end();await runtime.end();}
 });
 
@@ -82,8 +84,9 @@ test('confirmed invitation creates scoped membership exactly once',async()=>{
   const subject=randomUUID(),attempt=randomUUID(),input={email:'test@example.test',name:'Test invitation',role:'reader',allSites:false,siteIds:[site]};
   const id=(await db.query('SELECT identity.platform_invitation_create($1,$2,$3,$4) AS result',[tenant,input,randomUUID(),'Recette'])).rows[0].result.id;
   await db.query('SAVEPOINT unconfirmed');await assert.rejects(db.query('SELECT identity.platform_invitation_link($1,$2,$3)',[tenant,id,'https://example.supabase.co/auth/v1']),{code:'40001'});await db.query('ROLLBACK TO SAVEPOINT unconfirmed');
-  await db.query('SELECT identity.platform_invitation_reserve($1,$2,$3)',[tenant,id,attempt]);
+  await db.query("SELECT identity.platform_invitation_reserve_v2($1,$2,$3,'https://example.supabase.co/auth/v1')",[tenant,id,attempt]);
   await db.query('SELECT identity.platform_invitation_record_outcome($1,$2,$3,$4,$5)',[tenant,id,attempt,'sent',subject]);
+  await db.query('SAVEPOINT wrong_issuer');await assert.rejects(db.query('SELECT identity.platform_invitation_link($1,$2,$3)',[tenant,id,'https://other.supabase.co/auth/v1']),{code:'40001'});await db.query('ROLLBACK TO SAVEPOINT wrong_issuer');
   const one=(await db.query('SELECT identity.platform_invitation_link($1,$2,$3) AS result',[tenant,id,'https://example.supabase.co/auth/v1'])).rows[0].result;
   const two=(await db.query('SELECT identity.platform_invitation_link($1,$2,$3) AS result',[tenant,id,'https://example.supabase.co/auth/v1'])).rows[0].result;
   assert.equal(one.userId,two.userId);

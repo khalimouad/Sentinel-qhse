@@ -10,9 +10,11 @@ export async function createInvitationStore({databaseUrl,actorId}) {
  }catch(error){await pool.end();throw error;}
  async function transact(sql,args){const db=await pool.connect();try{await db.query('BEGIN');await db.query("SET LOCAL statement_timeout='15s'");await db.query("SET LOCAL lock_timeout='5s'");await db.query("SELECT set_config('app.actor_id',$1,true),set_config('app.tenant_id','',true)",[actorId]);const result=await db.query(sql,args);await db.query('COMMIT');return result.rows[0].result;}catch(error){await db.query('ROLLBACK');throw error;}finally{db.release();}}
  return {
-  reserve:(companyId,id,attemptId)=>transact('SELECT identity.platform_invitation_reserve($1,$2,$3) AS result',[companyId,id,attemptId]),
+  reserve:(companyId,id,attemptId,issuer)=>transact('SELECT identity.platform_invitation_reserve_v2($1,$2,$3,$4) AS result',[companyId,id,attemptId,issuer]),
   record:(companyId,id,attemptId,status,subject)=>transact('SELECT identity.platform_invitation_record_outcome($1,$2,$3,$4,$5) AS result',[companyId,id,attemptId,status,subject]),
   link:(companyId,id,issuer)=>transact('SELECT identity.platform_invitation_link($1,$2,$3) AS result',[companyId,id,issuer]),
+  lookup:(companyId,id)=>transact('SELECT identity.platform_invitation_lookup($1,$2) AS result',[companyId,id]),
+  reconcile:(companyId,id,attemptId,subject,note)=>transact('SELECT identity.platform_invitation_reconcile($1,$2,$3,$4,$5) AS result',[companyId,id,attemptId,subject,note]),
   close:()=>pool.end(),
  };
 }

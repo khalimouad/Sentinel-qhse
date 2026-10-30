@@ -17,6 +17,8 @@ services:
         value: 0.0.0.0
       - key: AUTH_REQUIRE_MFA
         value: 'true'
+      - key: INVITATION_DELIVERY_ENABLED
+        value: 'false'
       - key: DATABASE_URL
         sync: false
       - key: OIDC_ISSUER

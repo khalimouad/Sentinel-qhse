@@ -1,3 +1,4 @@
+import { InvitationGatewayService } from './platform/invitation-gateway.service.js';
 import { PlatformController } from './platform/platform.controller.js';
 import { PlatformService } from './platform/platform.service.js';
 import { Controller, Get, Module } from '@nestjs/common';
@@ -38,6 +39,6 @@ class HealthController {
 }
 @Module({
   controllers: [PlatformController,HealthController,WorkspaceController,ActionsController,ActionCommentsController,DocumentsController,ReportsController,AttachmentsController,AuditsController,AuditTemplatesController,AuditorQualificationsController,NotificationsController,RisksController,OverviewController,ObligationsController],
-  providers: [{ provide: CONFIG, useFactory: () => readConfig() },PlatformService,Database,IdentityGuard,ActionsService,ActionCommentsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService,AuditorQualificationsService,NotificationsService,RisksService,OverviewService,ObligationsService],
+  providers: [{ provide: CONFIG, useFactory: () => readConfig() },PlatformService,InvitationGatewayService,Database,IdentityGuard,ActionsService,ActionCommentsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService,AuditorQualificationsService,NotificationsService,RisksService,OverviewService,ObligationsService],
 })
 export class AppModule {}

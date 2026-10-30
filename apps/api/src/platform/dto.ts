@@ -44,7 +44,7 @@ export class PlatformAccountQuery extends PlatformQuery {
  @IsIn(['all','active','suspended']) status='all';
 }
 export class PlatformHistoryQuery extends PlatformQuery {
- @IsIn(['all','company','site','account','access','company_metadata','site_metadata','invitation_request']) operation='all';
+ @IsIn(['all','company','site','account','access','company_metadata','site_metadata','invitation_request','invitation_cancel','invitation_delivery_started','invitation_delivery_result','invitation_reconcile','invitation_linked']) operation='all';
 }
 
 export class PlatformInvitationDto extends AccessFields {
@@ -54,3 +54,5 @@ export class PlatformInvitationDto extends AccessFields {
 }
 
 export class CancelPlatformInvitationDto extends ReasonDto {}
+
+export class ReconcileInvitationDto extends ReasonDto { @IsUUID() subject!:string; }

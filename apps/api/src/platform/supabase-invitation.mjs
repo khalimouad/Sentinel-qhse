@@ -29,3 +29,20 @@ export function createInvitationProvider({url,serviceKey,redirectUrl,fetchImpl=f
     }catch{return {status:'uncertain'};}
   };
 }
+
+// Verify a known provider subject directly with Supabase; matching an unverified
+// input alone is never sufficient to attach tenant permissions.
+export function createInvitationLookup({url,serviceKey,fetchImpl=fetch}) {
+  const base=new URL(url);
+  if(base.protocol!=='https:'||!/^([a-z0-9-]+)\.supabase\.co$/.test(base.hostname)||base.username||base.password||base.pathname!=='/'||base.search||base.hash)throw new Error('Invalid Supabase project URL');
+  if(typeof serviceKey!=='string'||serviceKey.length<20)throw new Error('Missing service credential');
+  return async function lookup(subject,email){
+    if(typeof subject!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subject)||typeof email!=='string')return false;
+    try{
+      const response=await fetchImpl(new URL(`/auth/v1/admin/users/${subject}`,base),{headers:{'Authorization':`Bearer ${serviceKey}`,'apikey':serviceKey},redirect:'error',signal:AbortSignal.timeout(10000)});
+      if(!response.ok)return false;
+      const data=await response.json();
+      return typeof data.id==='string'&&data.id.toLowerCase()===subject.toLowerCase()&&typeof data.email==='string'&&data.email.trim().toLowerCase()===email.trim().toLowerCase()&&typeof data.email_confirmed_at==='string'&&Number.isFinite(Date.parse(data.email_confirmed_at));
+    }catch{return false;}
+  };
+}
