@@ -133,3 +133,7 @@ Une vue consolidée présente les dossiers et activités anticorruption enregist
 ## Avancement technique — AC-04, seuils
 
 Les cadeaux et dons disposent de seuils versionnés par site et devise ; le dépassement nécessite une décision administrateur. Des tests API/PostgreSQL locaux couvrent égalité, dépassement et changement de montant. Les circuits multi-étapes et la recette navigateur restent nécessaires ; l'exigence demeure non validée.
+
+## Avancement technique — AC-03 et AC-04, dossiers tiers
+
+Les évaluations, cadeaux, conflits et dons liés à un tiers peuvent être consultés depuis sa fiche. Des tests locaux couvrent les liens et leur périmètre. La recette métier et les autres exigences des circuits restent nécessaires ; AC-03 et AC-04 demeurent non validées.

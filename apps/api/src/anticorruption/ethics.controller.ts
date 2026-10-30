@@ -1,7 +1,7 @@
 import {Body,Controller,Get,Headers,Param,ParseUUIDPipe,Patch,Post,Query,Req,UseGuards} from '@nestjs/common';
 import {ApiBearerAuth,ApiHeader,ApiTags} from '@nestjs/swagger';
 import {IdentityGuard,type AuthenticatedRequest} from '../auth.js';
-import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto,EthicsSummaryQuery} from './dto.js';
+import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto,EthicsSummaryQuery,PartyRelationsQuery} from './dto.js';
 import {CreateThresholdDto,ThresholdQuery} from './threshold.dto.js';
 import {ControlTestQuery,CreateControlTestDto,CompleteControlTestDto,ControlTestActionDto} from './control-tests.dto.js';
 import {EthicsService} from './ethics.service.js';
@@ -20,5 +20,6 @@ export class EthicsController {
  @Post(':id/tests/:testId/complete') completeTest(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Param('testId',new ParseUUIDPipe()) testId:string,@Body() b:CompleteControlTestDto){return this.service.completeTest(r.principal,t,id,testId,b);}
  @Get(':id/tests/:testId/actions') testActions(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Param('testId',new ParseUUIDPipe()) testId:string,@Query() q:ControlTestQuery){return this.service.testActions(r.principal,t,id,testId,q);}
  @Post(':id/tests/:testId/actions') addTestAction(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Param('testId',new ParseUUIDPipe()) testId:string,@Body() b:ControlTestActionDto){return this.service.addTestAction(r.principal,t,id,testId,b);}
+ @Get(':id/relations') relations(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Param('id',new ParseUUIDPipe()) id:string,@Query() q:PartyRelationsQuery){return this.service.relations(r.principal,t,id,q);}
  @Get(':id/history') history(@Req() r:AuthenticatedRequest,@Headers('x-tenant-id') t:string|undefined,@Param('id',new ParseUUIDPipe()) id:string){return this.service.history(r.principal,t,id);}
 }

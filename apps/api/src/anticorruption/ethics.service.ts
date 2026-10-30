@@ -6,7 +6,7 @@ import type {EthicsSummary} from '@sentinelle/contracts';
 import type {Principal} from '../auth.js';
 import {CreateThresholdDto,ThresholdQuery} from './threshold.dto.js';
 import {ControlTestQuery,CreateControlTestDto,CompleteControlTestDto,ControlTestActionDto} from './control-tests.dto.js';
-import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto,EthicsSummaryQuery} from './dto.js';
+import {CreateEthicsDto,EthicsQuery,UpdateEthicsDto,EthicsDecisionDto,EthicsSummaryQuery,PartyRelationsQuery} from './dto.js';
 const columns=`e.id,e.kind,e.title,e.description,e.country,e.site_id AS "siteId",s.name AS "siteName",e.party_id AS "partyId",p.title AS "partyName",e.risk_id AS "riskId",r.title AS "linkedRiskTitle",e.risk,e.status,e.amount::text AS amount,e.currency,e.occurred_on::text AS "occurredOn",e.review_on::text AS "reviewOn",e.owner_id AS "ownerId",e.questionnaire,e.questionnaire_version AS "questionnaireVersion",e.decision,e.decision_note AS "decisionNote",e.decided_by AS "decidedBy",e.decided_at AS "decidedAt",e.decision_threshold_id AS "decisionThresholdId",e.decision_threshold_amount::text AS "decisionThresholdAmount",e.decision_escalated AS "decisionEscalated",e.revision,e.created_at AS "createdAt",e.updated_at AS "updatedAt"`;
 const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT JOIN app.ethics_records p ON p.id=e.party_id AND p.tenant_id=e.tenant_id LEFT JOIN app.risks r ON r.id=e.risk_id AND r.tenant_id=e.tenant_id';
 @Injectable() export class EthicsService {
@@ -50,7 +50,8 @@ const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT J
  });}
  create(principal:Principal,tenant:string|undefined,input:CreateEthicsDto){return this.database.withTenant(principal,tenant,async session=>{
   if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
-  if((input.kind==='assessment')!==Boolean(input.partyId))throw new BadRequestException('Une évaluation doit être liée à un tiers du même site.');
+  if(input.kind==='assessment'&&!input.partyId)throw new BadRequestException('Une évaluation doit être liée à un tiers du même site.');
+  if(input.partyId&&!['assessment','gift','conflict','donation'].includes(input.kind))throw new BadRequestException('Ce type de fiche ne peut pas être associé à un tiers.');
   if(input.riskId&&input.kind!=='control')throw new BadRequestException('Seul un contrôle peut être lié à un risque.');
   if(input.riskId){const risk=await session.db.query("SELECT id FROM app.risks WHERE tenant_id=$1 AND site_id=$2 AND id=$3 AND category='corruption'",[session.tenant.id,input.siteId,input.riskId]);if(!risk.rowCount)throw new BadRequestException('Risque de corruption introuvable sur ce site.');}
   if(input.amount&&!input.currency)throw new BadRequestException('La devise est obligatoire pour un montant.');
@@ -120,6 +121,17 @@ const joins='FROM app.ethics_records e JOIN app.sites s ON s.id=e.site_id LEFT J
   if(test.rows[0].status!=='completed'||!['partial','ineffective'].includes(test.rows[0].result||''))throw new ConflictException('Une action corrective nécessite un essai partiellement efficace ou non efficace.');
   const allowed=await session.db.query('SELECT identity.can_review_site($1,$2,$3) AS allowed',[session.tenant.id,test.rows[0].site_id,input.ownerId]);if(!allowed.rows[0].allowed)throw new BadRequestException('Responsable non habilité sur ce site.');
   const actionId=randomUUID();await session.db.query(`INSERT INTO app.actions(id,tenant_id,site_id,owner_id,title,origin,priority,due_date,control_test_id,control_test_request_key,control_test_actor_id) VALUES($1,$2,$3,$4,$5,'Essai de contrôle',$6,$7,$8,$9,$10)`,[actionId,session.tenant.id,test.rows[0].site_id,input.ownerId,input.title,input.priority,input.dueDate||null,testId,input.idempotencyKey,session.actor.id]);return {id:actionId};
+ });}
+ relations(principal:Principal,tenant:string|undefined,id:string,query:PartyRelationsQuery){return this.database.withTenant(principal,tenant,async session=>{
+  if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');
+  const party=await session.db.query("SELECT id FROM app.ethics_records WHERE tenant_id=$1 AND id=$2 AND kind='third_party'",[session.tenant.id,id]);if(!party.rowCount)throw new NotFoundException('Tiers introuvable.');
+  const args=[session.tenant.id,id,query.kind||null];
+  const count=await session.db.query(`SELECT count(*) FILTER(WHERE $3::text IS NULL OR kind=$3)::int AS total,
+    count(*) FILTER(WHERE kind='assessment')::int AS assessments,count(*) FILTER(WHERE kind='gift')::int AS gifts,
+    count(*) FILTER(WHERE kind='conflict')::int AS conflicts,count(*) FILTER(WHERE kind='donation')::int AS donations
+    FROM app.ethics_records WHERE tenant_id=$1 AND party_id=$2`,args);
+  const {rows}=await session.db.query(`SELECT ${columns} ${joins} WHERE e.tenant_id=$1 AND e.party_id=$2 AND ($3::text IS NULL OR e.kind=$3) ORDER BY e.created_at DESC,e.id DESC LIMIT $4 OFFSET $5`,[...args,query.limit,query.offset]);
+  return {items:rows,...count.rows[0]};
  });}
  history(principal:Principal,tenant:string|undefined,id:string){return this.database.withTenant(principal,tenant,async session=>{
   if(!session.canWrite)throw new ForbiddenException('Registre réservé aux responsables habilités.');const exists=await session.db.query('SELECT id FROM app.ethics_records WHERE tenant_id=$1 AND id=$2',[session.tenant.id,id]);if(!exists.rowCount)throw new NotFoundException('Dossier introuvable.');

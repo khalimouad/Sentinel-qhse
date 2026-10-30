@@ -44,8 +44,8 @@ test('third parties, evaluations, gifts and conflicts can be recorded and follow
  const invalid=await server.request(`ethics/${assessment.id}`,admin,{method:'PATCH',body:JSON.stringify({revision:completed.revision,status:'reviewed',risk:'high',description:'test',questionnaire:{unexpected:'yes'}})});assert.equal(invalid.status,400);
  const decision=await server.request(`ethics/${assessment.id}/decision`,admin,{method:'POST',body:JSON.stringify({revision:completed.revision,decision:'conditional',note:'Contrôler les bénéficiaires avant renouvellement'})});assert.equal(decision.status,201);assert.equal((await decision.json()).decision,'conditional');
  assert.equal((await server.request(`ethics/${assessment.id}/decision`,admin,{method:'POST',body:JSON.stringify({revision:completed.revision,decision:'approve',note:'Ancienne version'})})).status,409);
- const donation=await create({kind:'donation',title:'Parrainage local',amount:'1000',currency:'XOF'});assert.equal(donation.kind,'donation');
- const gift=await create({kind:'gift',title:'Invitation commerciale',amount:'125.00',currency:'EUR'});assert.equal(gift.amount,'125.00');
+ const donation=await create({kind:'donation',title:'Parrainage local',amount:'1000',currency:'XOF',partyId:parties[0].id});assert.equal(donation.kind,'donation');
+ const gift=await create({kind:'gift',title:'Invitation commerciale',amount:'125.00',currency:'EUR',partyId:parties[0].id});assert.equal(gift.amount,'125.00');
  const manager=await server.token('fatima-k'),beforeRules=await (await server.request(`ethics/thresholds?siteId=${base.siteId}`,admin)).json(),priorVersion=beforeRules.items.find(item=>item.kind==='gift'&&item.currency==='EUR')?.version||0,threshold={siteId:base.siteId,kind:'gift',currency:'EUR',amount:'100.00',idempotencyKey:randomUUID()};
  assert.equal((await server.request('ethics/thresholds',manager,{method:'POST',body:JSON.stringify(threshold)})).status,403);
 
@@ -66,13 +66,21 @@ test('third parties, evaluations, gifts and conflicts can be recorded and follow
  const amountSaved=await server.request(`ethics/${noAmount.id}`,admin,{method:'PATCH',body:JSON.stringify({revision:noAmount.revision,status:'open',risk:'low',description:'Montant connu',amount:'30.00',currency:'EUR'})});assert.equal(amountSaved.status,200);const amountRecord=await amountSaved.json();assert.equal((await server.request(`ethics/${noAmount.id}/decision`,manager,{method:'POST',body:JSON.stringify({revision:amountRecord.revision,decision:'approve',note:'Dans le seuil'})})).status,201);
 
 
- const conflict=await create({kind:'conflict',title:'Lien personnel déclaré'});assert.equal(conflict.status,'open');
+ const conflict=await create({kind:'conflict',title:'Lien personnel déclaré',partyId:parties[0].id});assert.equal(conflict.status,'open');
  const updated=await server.request(`ethics/${conflict.id}`,admin,{method:'PATCH',body:JSON.stringify({revision:conflict.revision,status:'reviewed',risk:'medium',description:'Mesure décidée'})});assert.equal(updated.status,200);assert.equal((await updated.json()).revision,2);
  assert.equal((await server.request(`ethics/${conflict.id}`,admin,{method:'PATCH',body:JSON.stringify({revision:1,status:'closed',risk:'low',description:'ancien'})})).status,409);
  const history=await (await server.request(`ethics/${conflict.id}/history`,admin)).json();assert.equal(history.length,2);
  assert.equal((await server.request('ethics?kind=third_party',reader)).status,403);assert.equal((await server.request('ethics?kind=third_party',admin,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
  assert.equal((await server.request('ethics',admin,{method:'POST',body:JSON.stringify({...base,kind:'assessment',title:'Sans tiers'})})).status,400);
  const list=await (await server.request(`ethics?kind=third_party&search=${prefix}`,admin)).json();assert.equal(list.total,10);
+ const relationPath=`ethics/${parties[0].id}/relations`;
+ const related=await server.request(relationPath,admin);assert.equal(related.status,200);const links=await related.json();assert.equal(links.total,4);assert.equal(links.assessments,1);assert.equal(links.gifts,1);assert.equal(links.conflicts,1);assert.equal(links.donations,1);
+ const gifts=await (await server.request(`${relationPath}?kind=gift&limit=1`,admin)).json();assert.equal(gifts.total,1);assert.equal(gifts.items[0].id,gift.id);assert.equal(gifts.assessments,1);
+ assert.equal((await server.request(relationPath,reader)).status,403);
+ assert.equal((await server.request(relationPath,admin,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
+ assert.equal((await server.request('ethics',admin,{method:'POST',body:JSON.stringify({...base,kind:'gift',title:'Tiers inexistant',partyId:randomUUID()})})).status,400);
+ assert.equal((await server.request('ethics',admin,{method:'POST',body:JSON.stringify({...base,kind:'control',title:'Lien non permis',partyId:parties[0].id})})).status,400);
+
  const summaryResponse=await server.request('ethics/summary',admin);assert.equal(summaryResponse.status,200);const summary=await summaryResponse.json();
  assert.equal(summary.thirdParties.total,beforeSummary.thirdParties.total+10);assert.equal(summary.thirdParties.withAssessment,beforeSummary.thirdParties.withAssessment+1);assert.equal(summary.thirdParties.withoutAssessment,beforeSummary.thirdParties.withoutAssessment+9);
  assert.equal(summary.assessments.total,beforeSummary.assessments.total+1);assert.equal(summary.declarations.gifts,beforeSummary.declarations.gifts+3);assert.equal(summary.declarations.conflicts,beforeSummary.declarations.conflicts+1);assert.equal(summary.declarations.donations,beforeSummary.declarations.donations+1);
