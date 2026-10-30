@@ -41,7 +41,7 @@ export async function demoApi(path,tenantId,options={}){
  }
  else if(kind==='actions'){
   const item=s.actions.find(x=>x.id===id);
-  if(!id)result=method==='POST'?action(input):page(filter(s.actions,q),q);
+  if(!id)result=method==='POST'?action(input):page(filter(s.actions,q).filter(item=>!q.get('status')||item.status===q.get('status')),q);
   else if(!item)throw new Error('Action de démonstration introuvable.');
   else if(command==='history')result=s.history[id]||[];
   else if(command==='comments'){

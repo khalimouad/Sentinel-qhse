@@ -190,3 +190,9 @@ La migration 024, l'API et l'interface relient la demande à un envoi explicite,
 ### Recette avec propriétaire de base restreint
 
 Une base locale vierge a été migrée sous `sentinelle_schema_owner` sans SUPERUSER ni BYPASSRLS. La migration 026 ajoute la politique SELECT nécessaire à l'INSERT dédupliqué des notifications, limitée au seul propriétaire et à l'acteur courant sur ses sites d'écriture. L'application conserve le cloisonnement par destinataire. Les tests de recette passent avec ce propriétaire ; ce résultat ne constitue pas une recette du projet Supabase hébergé.
+
+## Socle — consultation du plan d'actions paginé
+
+Le registre « Mes actions » charge maintenant les résultats par pages de 25, avec recherche par intitulé et filtres de statut et de site appliqués par l'API avant pagination. Le total reflète les résultats visibles dans le périmètre de l'utilisateur. Les actions plus anciennes sont accessibles, peuvent être clôturées ou rouvertes avec contrôle de version, et donnent accès à leur historique et à leurs commentaires. La réouverture d'une action liée rappelle que le dossier parent peut revenir en traitement. Le mode de démonstration applique les mêmes filtres.
+
+L'export JSON est explicitement limité à la page affichée ; il ne constitue pas l'export complet du tenant ni un export PDF/Excel. L'historique reste limité aux 100 derniers événements. Une recette navigateur et l'export complet restent nécessaires. Le build complet et le test du filtrage et de la pagination en démonstration ont réussi.
