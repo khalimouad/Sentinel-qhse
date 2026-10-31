@@ -32,6 +32,8 @@ import { ObligationsController } from './obligations/obligations.controller.js';
 import { ObligationsService } from './obligations/obligations.service.js';
 import { EthicsController } from './anticorruption/ethics.controller.js';
 import { EthicsService } from './anticorruption/ethics.service.js';
+import { ProcessesController } from './processes/processes.controller.js';
+import { ProcessesService } from './processes/processes.service.js';
 import { ObjectStorage } from './attachments/storage.js';
 
 @Controller('health')
@@ -40,7 +42,7 @@ class HealthController {
   @Get() healthy() { return this.database.healthy(); }
 }
 @Module({
-  controllers: [EthicsController,PlatformController,HealthController,WorkspaceController,ActionsController,ActionCommentsController,DocumentsController,ReportsController,AttachmentsController,AuditsController,AuditTemplatesController,AuditorQualificationsController,NotificationsController,RisksController,OverviewController,ObligationsController],
-  providers: [{ provide: CONFIG, useFactory: () => readConfig() },EthicsService,PlatformService,InvitationGatewayService,Database,IdentityGuard,ActionsService,ActionCommentsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService,AuditorQualificationsService,NotificationsService,RisksService,OverviewService,ObligationsService],
+  controllers: [ProcessesController,EthicsController,PlatformController,HealthController,WorkspaceController,ActionsController,ActionCommentsController,DocumentsController,ReportsController,AttachmentsController,AuditsController,AuditTemplatesController,AuditorQualificationsController,NotificationsController,RisksController,OverviewController,ObligationsController],
+  providers: [{ provide: CONFIG, useFactory: () => readConfig() },ProcessesService,EthicsService,PlatformService,InvitationGatewayService,Database,IdentityGuard,ActionsService,ActionCommentsService,DocumentsService,ReportsService,AttachmentsService,ObjectStorage,AuditsService,AuditTemplatesService,AuditorQualificationsService,NotificationsService,RisksService,OverviewService,ObligationsService],
 })
 export class AppModule {}

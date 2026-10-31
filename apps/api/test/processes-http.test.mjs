@@ -1,0 +1,32 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {startTestApi} from './support/api-server.mjs';
+let server;before(async()=>{server=await startTestApi();});after(async()=>{if(server)await server.close();});
+test('process map links documents and risks within a site',async()=>{
+ const admin=await server.token(),reader=await server.token('aicha-meite'),siteId='30000000-0000-4000-8000-000000000001',ownerId='20000000-0000-4000-8000-000000000001',code=`P-${randomUUID().slice(0,8).toUpperCase()}`;
+ const riskResponse=await server.request('risks',admin,{method:'POST',body:JSON.stringify({title:`Risque ${code}`,description:'Risque du processus',category:'quality',siteId,ownerId,inherentLikelihood:3,inherentSeverity:3,residualLikelihood:2,residualSeverity:2,controls:'Contrôle prévu',nextReviewOn:'2030-01-01'})});assert.equal(riskResponse.status,201);const risk=(await riskResponse.json()).risk;
+ const docResponse=await server.request('documents',admin,{method:'POST',body:JSON.stringify({siteId,code:`D-${code}`,title:'Procédure liée',content:'Procédure',reviewerId:'20000000-0000-4000-8000-000000000003',approverId:'20000000-0000-4000-8000-000000000005'})});assert.equal(docResponse.status,201);const doc=(await docResponse.json()).document;
+ const body={siteId,ownerId,code,title:'Achats',category:'operational',purpose:'Maîtriser les achats',inputs:'Besoin',outputs:'Commande'};
+ assert.equal((await server.request('processes',reader,{method:'POST',body:JSON.stringify(body)})).status,403);
+ const created=await server.request('processes',admin,{method:'POST',body:JSON.stringify(body)});assert.equal(created.status,201);const process=await created.json();
+ for(const link of [{kind:'risk',targetId:risk.id},{kind:'document',targetId:doc.id}])for(let i=0;i<2;i++)assert.equal((await server.request(`processes/${process.id}/links`,admin,{method:'POST',body:JSON.stringify(link)})).status,201);
+ const indicatorResponse=await server.request(`processes/${process.id}/indicators`,admin,{method:'POST',body:JSON.stringify({title:'Commandes conformes',unit:'%',target:'95.00',direction:'at_least',frequency:'monthly',ownerId})});assert.equal(indicatorResponse.status,201);const indicator=(await indicatorResponse.json()).id;
+ const measurementPath=`processes/${process.id}/indicators/${indicator}/measurements`;
+ assert.equal((await server.request(measurementPath,admin,{method:'POST',body:JSON.stringify({measuredOn:'2026-01-31',value:'91.5',note:'Premier mois'})})).status,201);
+ assert.equal((await server.request(measurementPath,admin,{method:'POST',body:JSON.stringify({measuredOn:'2026-02-28',value:'97.25'})})).status,201);
+ assert.equal((await server.request(measurementPath,admin,{method:'POST',body:JSON.stringify({measuredOn:'2026-02-28',value:'99'})})).status,409);
+ const indicators=await (await server.request(`processes/${process.id}/indicators`,admin)).json();assert.equal(indicators.total,1);assert.equal(indicators.items[0].latestValue,'97.2500');assert.equal(indicators.items[0].targetMet,true);
+ const measures=await (await server.request(measurementPath,admin)).json();assert.equal(measures.total,2);assert.equal(measures.items[0].measuredOn,'2026-02-28');
+ assert.equal((await server.request(measurementPath,reader)).status,403);
+ const linked=await (await server.request(`processes/${process.id}/links`,admin)).json();assert.equal(linked.total,2);assert.ok(linked.items.some(item=>item.targetId===risk.id));assert.ok(linked.items.some(item=>item.targetId===doc.id));
+ assert.equal((await server.request(`processes/${process.id}/links`,admin,{method:'POST',body:JSON.stringify({kind:'risk',targetId:randomUUID()})})).status,400);
+ const otherRiskResponse=await server.request('risks',admin,{method:'POST',body:JSON.stringify({title:`Autre site ${code}`,description:'Autre site',category:'quality',siteId:'30000000-0000-4000-8000-000000000002',ownerId,inherentLikelihood:3,inherentSeverity:3,residualLikelihood:2,residualSeverity:2,controls:'Contrôle',nextReviewOn:'2030-01-01'})});assert.equal(otherRiskResponse.status,201);const otherRisk=(await otherRiskResponse.json()).risk;
+ assert.equal((await server.request(`processes/${process.id}/links`,admin,{method:'POST',body:JSON.stringify({kind:'risk',targetId:otherRisk.id})})).status,400);
+
+ const changed=await server.request(`processes/${process.id}`,admin,{method:'PATCH',body:JSON.stringify({revision:process.revision,title:'Achats mis à jour',category:'operational',ownerId,status:'active',purpose:'Nouveau',inputs:'Besoin',outputs:'Commande'})});assert.equal(changed.status,200);assert.equal((await changed.json()).revision,2);
+ assert.equal((await server.request(`processes/${process.id}`,admin,{method:'PATCH',body:JSON.stringify({revision:1,title:'Ancien',category:'operational',ownerId,status:'active'})})).status,409);
+ assert.equal((await server.request(`processes/${process.id}`,reader)).status,403);
+ assert.equal((await server.request('processes',admin,{headers:{'X-Tenant-Id':'10000000-0000-4000-8000-000000000002'}})).status,403);
+ const events=await (await server.request(`processes/${process.id}/history`,admin)).json();assert.equal(events.length,2);
+});

@@ -318,3 +318,11 @@ La migration 043 est appliquée sur Supabase de test. Le build et 35 tests d'int
 La fiche tiers comprend le type de relation, l'immatriculation, le contact, l'activité et une description des bénéficiaires effectifs ou de la structure de propriété. La création et la modification sont enregistrées dans l'historique existant. La fiche affiche la dernière évaluation créée, sa décision et sa prochaine revue ; elle ne conclut pas automatiquement à la conformité ou à l'actualité de l'évaluation après une modification du profil.
 
 La migration 044 est appliquée sur Supabase de test. Le build et les 35 tests d'intégration locaux ont réussi, dont création et modification du profil, validation de l'adresse et lecture de la dernière évaluation. La collecte de preuves, les données sanctions/PEP, les évaluations sur dix tiers en recette et la recette navigateur restent à réaliser. L'API hébergée reste nécessaire pour les comptes réels.
+
+## Management intégré — processus et indicateurs
+
+Un registre des processus permet de renseigner code, catégorie, pilote, finalité, entrées et sorties, puis de lier des risques et documents du même site. Les fiches sont modifiables avec contrôle de révision et historique ; elles peuvent être archivées. Les liens sont conservés et leur sélection propose actuellement les 100 éléments les plus récents du site.
+
+Chaque processus peut recevoir des indicateurs avec unité, objectif, sens (au moins/au plus), fréquence et responsable. Les mesures datées sont conservées, et la dernière est comparée à l'objectif. Les objectifs et mesures existants ne sont pas encore modifiables ni importables ; les fréquences ne déclenchent pas d'alerte automatique.
+
+Les migrations 045 et 046 sont installées sur Supabase de test. Le build et 36 tests d'intégration locaux ont réussi, dont création d'un processus, liens à un risque et un document, refus d'un lien intersite, deux mesures et calcul d'atteinte. La cartographie graphique, les interactions entre processus, la révision des objectifs, l'export et la recette navigateur restent à développer. L'API hébergée reste nécessaire pour les comptes réels.

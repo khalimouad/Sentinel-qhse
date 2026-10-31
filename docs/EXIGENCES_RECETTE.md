@@ -141,3 +141,7 @@ Les évaluations, cadeaux, conflits et dons liés à un tiers peuvent être cons
 ## Avancement technique — AC-03, profil des tiers
 
 La fiche d'un tiers permet de saisir ses informations d'identification, son activité et sa structure de propriété ; elle affiche sa dernière évaluation. Un test local couvre le parcours. Les preuves, les contrôles externes et la recette de dix évaluations restent à réaliser ; AC-03 demeure non validée.
+
+## Avancement technique — SOC-03 et SOC-09
+
+Un registre relie les processus à leurs risques, documents et indicateurs ; les mesures sont comparées aux objectifs. Un test API/PostgreSQL local couvre le parcours. L'import, les alertes, les autres relations et la recette métier restent nécessaires ; SOC-03 et SOC-09 demeurent non validées.
