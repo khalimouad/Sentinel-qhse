@@ -189,3 +189,5 @@ L’espace `/admin` est réservé aux opérateurs de plateforme et gère entrepr
 ### Essayer sans backend
 
 Ouvrir [`/demo`](https://sentinel-qhse.vercel.app/demo) pour explorer l’interface avec un administrateur et des données fictifs. Actions et commentaires sont conservés uniquement dans le navigateur; la bannière permet de les réinitialiser. Aucun compte réel ni contournement de connexion serveur n’est créé. Voir [les parcours et limites de la démonstration](docs/DEMO.md).
+
+Pour une prise en main plus courte, ouvrir [`/demarrage`](https://sentinel-qhse.vercel.app/demarrage). Cette version simplifiée guide la configuration de l’organisation, le choix de référentiels, les signalements différenciés, les actions et la saisie manuelle des obligations. Ses données restent dans le navigateur; ce parcours est une démonstration monoposte et ne doit pas contenir de données personnelles ou de signalements confidentiels. Voir [le périmètre de démarrage simple](docs/DEMARRAGE_SIMPLE.md).
